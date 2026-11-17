@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>靠北消消乐</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1230; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    color: #fff; user-select: none; -webkit-user-select: none;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #top {
+    width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    background: rgba(255,255,255,.05); border-bottom: 1px solid rgba(255,255,255,.08); flex: none;
+  }
+  #top .name { font-weight: 800; font-size: 16px; letter-spacing: 1px; }
+  .stat { text-align: center; }
+  .stat .v { font-size: 20px; font-weight: 800; color: #ffd36e; line-height: 1.1; }
+  .stat .k { font-size: 10px; color: #b9a8e8; letter-spacing: 2px; }
+  #lbBtn {
+    margin-left: auto; padding: 7px 12px; border-radius: 10px; border: 1px solid rgba(255,211,110,.4);
+    background: rgba(255,211,110,.12); color: #ffd36e; font-size: 12px; cursor: pointer;
+  }
+  #board {
+    flex: 1; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+    gap: 4px; padding: 10px; width: min(100vw, 70vh); margin: 0 auto; align-content: center;
+  }
+  .cell {
+    display: flex; align-items: center; justify-content: center; border-radius: 12px;
+    font-size: clamp(18px, 4.6vmin, 34px); background: rgba(255,255,255,.07); cursor: pointer;
+    transition: transform .12s ease, background .12s ease; line-height: 1;
+  }
+  .cell:hover { background: rgba(255,255,255,.14); }
+  .cell.sel { background: rgba(255,211,110,.35); transform: scale(1.12); }
+  .cell.hint { background: rgba(127,255,180,.28); }
+  .cell.pop { animation: pop .28s ease forwards; }
+  @keyframes pop { 40% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
+  .cell.drop { animation: drop .22s ease; }
+  @keyframes drop { from { transform: translateY(-90%); opacity: .4; } to { transform: translateY(0); opacity: 1; } }
+  #foot { flex: none; padding: 8px 12px calc(14px + env(safe-area-inset-bottom)); text-align: center; font-size: 11px; color: #b9a8e8; }
+  #over {
+    position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.65); display: none;
+    align-items: center; justify-content: center;
+  }
+  #overBox { background: #241a44; border: 1px solid rgba(255,211,110,.35); border-radius: 18px; padding: 26px 30px; text-align: center; }
+  #overBox h2 { margin: 0 0 8px; color: #ffd36e; }
+  #overBox p { margin: 0 0 16px; color: #d9cef5; font-size: 14px; }
+  #againBtn { padding: 11px 30px; border-radius: 12px; border: none; background: #ffd36e; color: #4a3608; font-size: 15px; font-weight: 700; cursor: pointer; }
+  /* 排行榜 */
+  #lbLayer { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; }
+  #lbBox2 { background: #241a44; border: 1px solid rgba(255,211,110,.35); border-radius: 16px; padding: 18px; width: min(360px, 92vw); max-height: 76vh; overflow-y: auto; }
+  #lbBox2 h3 { margin: 0 0 12px; font-size: 16px; color: #ffd36e; text-align: center; }
+  .lrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; font-size: 13px; }
+  .lrow.top { background: rgba(255,211,110,.1); }
+  .lrank { width: 26px; text-align: center; color: #ffd36e; font-weight: 700; flex: none; }
+  .lname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbest { color: #ffd36e; font-weight: 700; flex: none; }
+  #lbClose { margin-top: 12px; width: 100%; padding: 10px; border-radius: 12px; border: 1px solid rgba(255,211,110,.4); background: rgba(255,211,110,.12); color: #ffd36e; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div id="top">
+    <span style="font-size:20px">🍬</span>
+    <div class="name">靠北消消乐</div>
+    <div class="stat"><div class="v" id="score">0</div><div class="k">分数</div></div>
+    <div class="stat"><div class="v" id="moves">30</div><div class="k">剩余步数</div></div>
+    <div class="stat"><div class="v" id="best">0</div><div class="k">最佳</div></div>
+    <button id="lbBtn">🏆</button>
+  </div>
+  <div id="board"></div>
+  <div id="foot">点击选中一颗，再点相邻的交换；凑齐 3 个同色即可消除 · 连锁有加成</div>
+  <div id="over"><div id="overBox"><h2>本局结束！</h2><p id="overText"></p><button id="againBtn">🔄 再来一局</button></div></div>
+  <div id="lbLayer"><div id="lbBox2"><h3>🏆 消消乐排行榜</h3><div id="lbList" class="lrow" style="display:block">加载中…</div><button id="lbClose">关闭</button></div></div>
+
+<script>
+(function () {
+  'use strict'
+  var N = 8, KINDS = ['🍎', '🍊', '🍋', '🍇', '🍓', '🥝', '🍑']
+  var board = [], sel = null, busy = false, score = 0, moves = 30, over = false
+  var best = 0
+  var boardEl = document.getElementById('board')
+  var kbToken = null
+  try { kbToken = localStorage.getItem('wxchat_token') } catch (e) {}
+
+  function api(path, body) {
+    var opt = { method: body ? 'POST' : 'GET', headers: { 'X-Token': kbToken || '' } }
+    if (body) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body) }
+    return fetch(path, opt).then(function (r) { return r.json() })
+  }
+  function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    })
+  }
+
+  function newBoard() {
+    var b
+    do { b = []
+      for (var r = 0; r < N; r++) { b.push([]); for (var c = 0; c < N; c++) b[r].push(Math.floor(Math.random() * KINDS.length)) }
+    } while (findMatches(b).length)
+    return b
+  }
+  function findMatches(b) {
+    var set = {}
+    function mark(r, c) { set[r + ',' + c] = true }
+    for (var r = 0; r < N; r++) for (var c = 0; c < N - 2; c++) {
+      var k = b[r][c]
+      if (k === b[r][c + 1] && k === b[r][c + 2]) { mark(r, c); mark(r, c + 1); mark(r, c + 2); var cc = c + 3; while (cc < N && b[r][cc] === k) { mark(r, cc); cc++ } c = cc - 1 }
+    }
+    for (c = 0; c < N; c++) for (r = 0; r < N - 2; r++) {
+      k = b[r][c]
+      if (b[r + 1][c] === k && b[r + 2][c] === k) { mark(r, c); mark(r + 1, c); mark(r + 2, c); var rr = r + 3; while (rr < N && b[rr][c] === k) { mark(rr, c); rr++ } r = rr - 1 }
+    }
+    return Object.keys(set)
+  }
+  function hasMoves(b) {
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) {
+      if (c < N - 1) { swap(b, r, c, r, c + 1); var ok = findMatches(b).length > 0; swap(b, r, c, r, c + 1); if (ok) return true }
+      if (r < N - 1) { swap(b, r, c, r + 1, c); ok = findMatches(b).length > 0; swap(b, r, c, r + 1, c); if (ok) return true }
+    }
+    return false
+  }
+  function swap(b, r1, c1, r2, c2) { var t = b[r1][c1]; b[r1][c1] = b[r2][c2]; b[r2][c2] = t }
+
+  function render() {
+    var html = ''
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) {
+      html += '<div class="cell" data-r="' + r + '" data-c="' + c + '">' + KINDS[board[r][c]] + '</div>'
+    }
+    boardEl.innerHTML = html
+  }
+  function cellAt(r, c) { return boardEl.children[r * N + c] }
+
+  function popCells(keys, gained) {
+    keys.forEach(function (k) {
+      var p = k.split(','), el = cellAt(+p[0], +p[1])
+      if (el) el.classList.add('pop')
+    })
+    document.getElementById('score').textContent = score
+    setTimeout(function () { resolveBoard(0, gained) }, 300)
+  }
+  function resolveBoard(chain, gained) {
+    var m = findMatches(board)
+    if (!m.length) {
+      if (!hasMoves(board)) { /* 无可交换：重排 */ board = newBoard(); render() }
+      busy = false
+      render()
+      return
+    }
+    m.forEach(function (k) {
+      var p = k.split(',')
+      board[+p[0]][+p[1]] = -1
+    })
+    for (var c = 0; c < N; c++) {
+      var stack = []
+      for (var r = N - 1; r >= 0; r--) if (board[r][c] >= 0) stack.push(board[r][c])
+      for (r = N - 1; r >= 0; r--) board[r][c] = stack.length ? stack.shift() : Math.floor(Math.random() * KINDS.length)
+    }
+    var bonus = chain * 10
+    score += m.length * 10 + bonus
+    document.getElementById('score').textContent = score
+    render()
+    setTimeout(function () { resolveBoard(chain + 1, gained) }, 260)
+  }
+
+  function trySwap(r1, c1, r2, c2) {
+    busy = true
+    swap(board, r1, c1, r2, c2)
+    if (!findMatches(board).length) {
+      swap(board, r1, c1, r2, c2)   /* 无消除换回 */
+      render()
+      var a = cellAt(r1, c1), b = cellAt(r2, c2)
+      if (a && b) { a.style.transform = 'scale(.9)'; b.style.transform = 'scale(.9)'; setTimeout(function () { a.style.transform = ''; b.style.transform = '' }, 160) }
+      busy = false
+      return
+    }
+    moves--
+    document.getElementById('moves').textContent = moves
+    render()
+    popCells([], 0)
+    setTimeout(function () { if (moves <= 0) endGame() }, 800)
+  }
+
+  function onClick(e) {
+    if (busy || over) return
+    var t = e.target.closest('.cell')
+    if (!t) return
+    var r = +t.dataset.r, c = +t.dataset.c
+    if (sel == null) {
+      sel = [r, c]
+      t.classList.add('sel')
+      return
+    }
+    var sr = sel[0], sc = sel[1]
+    var prevEl = cellAt(sr, sc)
+    prevEl && prevEl.classList.remove('sel')
+    sel = null
+    if (sr === r && sc === c) return
+    if (Math.abs(sr - r) + Math.abs(sc - c) !== 1) {   /* 不相邻：改选 */
+      sel = [r, c]; t.classList.add('sel'); return
+    }
+    trySwap(sr, sc, r, c)
+  }
+
+  function endGame() {
+    if (over) return
+    over = true
+    var improved = score > best
+    best = Math.max(best, score)
+    document.getElementById('best').textContent = best
+    document.getElementById('overText').textContent = '本局得分 ' + score + (improved ? ' · 🎉 新纪录！' : ' · 最佳 ' + best)
+    document.getElementById('over').style.display = 'flex'
+    if (kbToken && score > 0) {
+      api('/api/game/score', { game: 'match3', score: score }).catch(function () {})
+    }
+  }
+
+  function start() {
+    board = newBoard(); sel = null; busy = false; over = false
+    score = 0; moves = 30
+    document.getElementById('score').textContent = 0
+    document.getElementById('moves').textContent = 30
+    document.getElementById('over').style.display = 'none'
+    render()
+  }
+
+  boardEl.addEventListener('click', onClick)
+  document.getElementById('againBtn').onclick = start
+
+  document.getElementById('lbBtn').onclick = function () {
+    var layer = document.getElementById('lbLayer')
+    layer.style.display = 'flex'
+    var box = document.getElementById('lbList')
+    box.innerHTML = '<div style="text-align:center;color:#b9a8e8;padding:10px">加载中…</div>'
+    api('/api/game/leaderboard?game=match3').then(function (j) {
+      var list = (j && j.list) || []
+      box.innerHTML = list.length
+        ? list.map(function (u, i) {
+            return '<div class="lrow' + (i < 3 ? ' top' : '') + '"><span class="lrank">' + (i + 1) + '</span><span class="lname">' + esc(u.name) + '</span><span class="lbest">' + (u.best || 0) + '</span></div>'
+          }).join('')
+        : '<div style="text-align:center;color:#b9a8e8;padding:10px">还没有人上榜，快来抢第一！</div>'
+    }).catch(function () { box.textContent = '加载失败' })
+  }
+  document.getElementById('lbClose').onclick = function () { document.getElementById('lbLayer').style.display = 'none' }
+
+  /* 载入我的最佳 */
+  if (kbToken) {
+    api('/api/game/leaderboard?game=match3').then(function (j) {
+      best = (j && j.myBest) || 0
+      document.getElementById('best').textContent = best
+    }).catch(function () {})
+  }
+
+  start()
+  /* 供自动化验证 */
+  window.__match3 = {
+    get score() { return score }, get moves() { return moves }, get busy() { return busy },
+    get cells() { return boardEl.children.length },
+    getBoard: function () { return board }, findMatches: findMatches, hasMoves: hasMoves,
+    trySwap: trySwap, start: start,
+  }
+})()
+</script>
+</body>
+</html>
