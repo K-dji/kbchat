@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>成语接龙 · 靠北游戏</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0b1020; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    color: #eef2ff; user-select: none; -webkit-user-select: none;
+    display: flex; flex-direction: column;
+  }
+  #top {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    background: rgba(255,255,255,.04); border-bottom: 1px solid rgba(255,255,255,.08); flex: none;
+  }
+  #top .logo { font-size: 20px; }
+  #top .name { font-weight: 700; font-size: 15px; letter-spacing: 1px; }
+  #top .sub { font-size: 11px; color: #8b96bd; }
+  #score-wrap { margin-left: auto; text-align: right; }
+  #score { font-size: 22px; font-weight: 800; color: #ffd36e; line-height: 1; }
+  #score-label { font-size: 10px; color: #8b96bd; letter-spacing: 2px; }
+  #lbBtn {
+    padding: 7px 12px; border-radius: 10px; border: 1px solid rgba(143,227,255,.35);
+    background: rgba(143,227,255,.1); color: #8fe3ff; font-size: 12px; cursor: pointer;
+  }
+  #lbBtn:hover { background: rgba(143,227,255,.2); }
+  #chain { flex: 1; overflow-y: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; gap: 8px; align-items: flex-start; max-width: 86%; }
+  .row.me { align-self: flex-end; flex-direction: row-reverse; }
+  .bub {
+    padding: 10px 14px; border-radius: 14px; font-size: 15px; line-height: 1.5; word-break: break-all;
+  }
+  .row.me .bub { background: #2b6bd9; border-bottom-right-radius: 4px; }
+  .row.ai .bub { background: rgba(255,255,255,.08); border-bottom-left-radius: 4px; }
+  .row.sys { align-self: center; max-width: none; }
+  .row.sys .bub { background: none; color: #8b96bd; font-size: 12px; padding: 2px; }
+  .bub .why { display: block; font-size: 11px; color: #ff9a9a; margin-top: 4px; }
+  .bub .tag { display: inline-block; font-size: 10px; color: #8fe3ff; border: 1px solid rgba(143,227,255,.4); border-radius: 4px; padding: 0 4px; margin-left: 6px; vertical-align: 1px; }
+  .thinking .bub { color: #8b96bd; }
+  .thinking .dots i { animation: blink 1.2s infinite; display: inline-block; }
+  .thinking .dots i:nth-child(2) { animation-delay: .2s; }
+  .thinking .dots i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .2; } 40% { opacity: 1; } }
+  #composer { flex: none; display: flex; gap: 8px; padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.04); border-top: 1px solid rgba(255,255,255,.08); }
+  #wordInput {
+    flex: 1; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.06); color: #eef2ff; font-size: 16px; padding: 0 14px; outline: none;
+  }
+  #wordInput:focus { border-color: #2b6bd9; }
+  #sendBtn {
+    height: 44px; padding: 0 22px; border-radius: 12px; border: none; cursor: pointer;
+    background: #2b6bd9; color: #fff; font-size: 15px; font-weight: 600;
+  }
+  #sendBtn:disabled { opacity: .5; }
+  #hint { flex: none; text-align: center; font-size: 11px; color: #66739c; padding: 0 12px 6px; }
+  #need { color: #ffd36e; font-weight: 700; }
+  /* 排行榜 */
+  #lbLayer { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; }
+  #lbBox2 { background: #141a30; border: 1px solid rgba(143,227,255,.25); border-radius: 16px; padding: 18px; width: min(360px, 92vw); max-height: 76vh; overflow-y: auto; }
+  #lbBox2 h3 { margin: 0 0 12px; font-size: 16px; color: #8fe3ff; text-align: center; }
+  .lrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; font-size: 13px; }
+  .lrow.top { background: rgba(255,211,110,.08); }
+  .lrank { width: 26px; text-align: center; color: #ffd36e; font-weight: 700; flex: none; }
+  .lname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbest { color: #ffd36e; font-weight: 700; flex: none; }
+  #lbClose { margin-top: 12px; width: 100%; padding: 10px; border-radius: 12px; border: 1px solid rgba(143,227,255,.35); background: rgba(143,227,255,.1); color: #8fe3ff; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div id="top">
+    <span class="logo">🔗</span>
+    <div><div class="name">成语接龙 · 对战小靠AI</div><div class="sub">接得越长分越高</div></div>
+    <div id="score-wrap"><div id="score">0</div><div id="score-label">连龙</div></div>
+    <button id="lbBtn">🏆</button>
+  </div>
+  <div id="chain"></div>
+  <div id="hint">请出成语，首字需接 <span id="need">任意</span>（可同音）</div>
+  <div id="composer">
+    <input id="wordInput" maxlength="8" placeholder="输入一个成语，开局任意" />
+    <button id="sendBtn">出词</button>
+  </div>
+
+<script>
+(function () {
+  'use strict'
+  var $ = function (id) { return document.getElementById(id) }
+  var chainEl = $('chain'), input = $('wordInput'), sendBtn = $('sendBtn')
+  var score = 0, prev = '', busy = false, over = false
+  var kbToken = null
+  try { kbToken = localStorage.getItem('wxchat_token') } catch (e) {}
+
+  function api(path, body) {
+    var opt = { method: body ? 'POST' : 'GET', headers: { 'X-Token': kbToken || '' } }
+    if (body) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body) }
+    return fetch(path, opt).then(function (r) { return r.json() })
+  }
+
+  function addRow(kind, html) {
+    var d = document.createElement('div')
+    d.className = 'row ' + kind
+    d.innerHTML = '<div class="bub">' + html + '</div>'
+    chainEl.appendChild(d)
+    chainEl.scrollTop = chainEl.scrollHeight
+    return d
+  }
+  function setNeed(w) { $('need').textContent = w ? '「' + w + '」（可同音）' : '任意' }
+  function setScore(n) { score = n; $('score').textContent = n }
+
+  function setBusy(b, think) {
+    busy = b
+    sendBtn.disabled = b
+    input.disabled = b
+    sendBtn.textContent = b ? 'AI 思考中…' : '出词'
+    var t = document.querySelector('.row.thinking')
+    if (t) t.remove()
+    if (think) addRow('ai thinking', '小靠AI 思考中 <span class="dots"><i>·</i><i>·</i><i>·</i></span>')
+  }
+
+  function gameOver(reason) {
+    if (over) return
+    over = true
+    addRow('sys', '本局结束：' + reason + ' · 连龙 <b style="color:#ffd36e">' + score + '</b>')
+    if (kbToken && score > 0) {
+      api('/api/game/score', { game: 'chengyu', score: score }).then(function (j) {
+        if (j && j.ok && j.improved) addRow('sys', '🎉 新纪录！经验 +' + (j.expGain || 0))
+      }).catch(function () {})
+    }
+    var again = document.createElement('button')
+    again.textContent = '🔄 再来一局'
+    again.style.cssText = 'margin:6px auto;padding:10px 26px;border-radius:12px;border:1px solid rgba(143,227,255,.35);background:rgba(143,227,255,.12);color:#8fe3ff;font-size:14px;cursor:pointer'
+    again.onclick = reset
+    var w = document.createElement('div')
+    w.style.textAlign = 'center'
+    w.appendChild(again)
+    chainEl.appendChild(w)
+    chainEl.scrollTop = chainEl.scrollHeight
+  }
+
+  function submit(word) {
+    if (busy || over) return
+    word = (word || '').trim()
+    if (!word) return
+    if (!/^[\u4e00-\u9fa5]{2,8}$/.test(word)) { addRow('sys', '请输入汉字'); return }
+    addRow('me', esc(word))
+    input.value = ''
+    setBusy(true, true)
+    api('/api/game/chengyu', { word: word, prev: prev }).then(function (j) {
+      j = j || {}
+      if (j.error) { addRow('sys', esc(j.error)); setBusy(false); return }
+      if (!j.valid) {
+        addRow('ai', '❌ ' + esc(word) + ' 不算接上哦<span class="why">' + esc(j.reason || '不是成语或首字没接上') + '</span>')
+        setBusy(false)
+        return
+      }
+      prev = word
+      setScore(score + 1)
+      if (!j.aiWord) {
+        addRow('ai', '👍 接得漂亮！我认输了<span class="why">接不上「' + esc(word) + '」的尾字</span>')
+        setBusy(false)
+        gameOver('AI 认输')
+        return
+      }
+      addRow('ai', esc(j.aiWord) + '<span class="tag">AI</span>')
+      prev = j.aiWord
+      setNeed(j.aiWord.charAt(j.aiWord.length - 1))
+      setBusy(false)
+      input.focus()
+    }).catch(function () { addRow('sys', '网络异常，请重试'); setBusy(false) })
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    })
+  }
+
+  function reset() {
+    score = 0; prev = ''; over = false
+    setScore(0); setNeed('')
+    chainEl.innerHTML = ''
+    addRow('sys', '🔗 成语接龙：你出一个成语，小靠AI 接一个；AI 再接你的尾字，接不上就输')
+    addRow('sys', '💡 提示：AI 接完后，你要用 AI 那个成语的尾字继续接（同音也算）')
+    setBusy(false)
+    input.focus()
+  }
+
+  sendBtn.onclick = function () { submit(input.value) }
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); submit(input.value) }
+  })
+
+  $('lbBtn').onclick = function () {
+    var layer = document.createElement('div')
+    layer.id = 'lbLayer'
+    layer.innerHTML = '<div id="lbBox2"><h3>🏆 接龙排行榜</h3><div id="lbList2" class="lb-loading">加载中…</div><button id="lbClose">关闭</button></div>'
+    document.body.appendChild(layer)
+    layer.onclick = function (e) { if (e.target === layer) layer.remove() }
+    layer.querySelector('#lbClose').onclick = function () { layer.remove() }
+    var box = layer.querySelector('#lbList2')
+    api('/api/game/leaderboard?game=chengyu').then(function (j) {
+      var list = (j && j.list) || []
+      box.className = ''
+      box.innerHTML = list.length
+        ? list.map(function (u, i) {
+            return '<div class="lrow' + (i < 3 ? ' top' : '') + '"><span class="lrank">' + (i + 1) + '</span><span class="lname">' + esc(u.name) + '</span><span class="lbest">' + (u.best || 0) + ' 连</span></div>'
+          }).join('')
+        : '<div class="lb-loading">还没有人上榜，快来抢第一！</div>'
+    }).catch(function () { box.textContent = '加载失败' })
+  }
+
+  reset()
+  /* 供自动化验证 */
+  window.__chengyu = {
+    get score() { return score }, get prev() { return prev }, get busy() { return busy },
+    get rows() { return chainEl.querySelectorAll('.row').length },
+    submit: submit, reset: reset,
+  }
+})()
+</script>
+</body>
+</html>
