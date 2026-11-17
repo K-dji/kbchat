@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>靠北Chat</title>
+<link rel="icon" href="https://kbchat.pages.dev/favicon.svg" type="image/svg+xml">
+<meta name="description" content="靠北Chat - 网页版多人在线实时聊天">
+<style>
+html,body{margin:0;padding:0;height:100%;background:#0a1233;overflow:hidden}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
+#tip{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+color:#9aa7c7;font-family:sans-serif;font-size:14px;text-align:center;line-height:2}
+</style>
+</head>
+<body>
+<div id="tip">正在进入 靠北Chat…<br>若长时间未加载，<a style="color:#07C160" href="https://kbchat.pages.dev">点此直达</a></div>
+<iframe src="https://kbchat.pages.dev/" title="靠北Chat" allow="camera;microphone;geolocation;clipboard-write"
+ onload="document.getElementById('tip').style.display='none'"></iframe>
+</body>
+</html>
