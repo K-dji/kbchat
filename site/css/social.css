@@ -1,0 +1,543 @@
+/* ===========================================================
+ * social.css —— 朋友圈 / 靠北帖 / 违禁词 / 新手指引
+ * 深色主题沿用 body.dark 的整体反色，这里只用中性色
+ * =========================================================== */
+
+/* ---------- 全区域视图（同公告栏） ---------- */
+.pane-social {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #f7f7f7;
+  border-left: 1px solid #e6e6e6;
+}
+.social-view-title { font-size: 15px; font-weight: 600; color: #333; }
+.social-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #ececec;
+  background: #fff;
+  flex-wrap: wrap;
+}
+.social-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.social-list::-webkit-scrollbar { width: 8px; }
+.social-list::-webkit-scrollbar-thumb { background: #d8d8d8; border-radius: 4px; }
+
+/* ---------- 朋友圈卡片 ---------- */
+.mm-card,
+.fm-card {
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  padding: 14px 16px;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+}
+.mm-head, .fm-head { display: flex; align-items: flex-start; gap: 10px; }
+.mm-av {
+  width: 38px; height: 38px; border-radius: 6px; flex: none;
+  background: #f1f1f1; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; overflow: hidden;
+}
+.mm-av img { width: 100%; height: 100%; object-fit: cover; }
+.mm-meta { flex: 1; min-width: 0; }
+.mm-name { font-size: 14px; font-weight: 600; color: #2b6cb0; }
+.mm-wxid { font-size: 11px; color: #999; font-weight: 400; margin-left: 4px; }
+.mm-sub { font-size: 11px; color: #a0a0a0; margin-top: 2px; }
+.mm-more {
+  border: none; background: none; cursor: pointer; color: #999;
+  font-size: 18px; line-height: 1; padding: 0 4px;
+}
+.mm-text { font-size: 14px; color: #333; line-height: 1.7; margin: 10px 0 4px; white-space: pre-wrap; word-break: break-word; }
+.mm-media {
+  max-width: 100%; max-height: 320px; border-radius: 8px;
+  margin: 6px 6px 0 0; display: inline-block; object-fit: cover; cursor: zoom-in;
+}
+.mm-audio { width: 100%; margin-top: 8px; }
+.mm-actions {
+  display: flex; gap: 10px; margin-top: 10px; padding-top: 8px;
+  border-top: 1px dashed #eee;
+}
+.mm-act {
+  border: none; background: none; cursor: pointer; font-size: 12.5px;
+  color: #666; padding: 3px 6px; border-radius: 5px;
+}
+.mm-act:hover { background: #f5f5f5; }
+.mm-act.is-on { color: #d93a3a; font-weight: 600; }
+.mm-comments { margin-top: 8px; background: #fafafa; border-radius: 6px; padding: 8px 10px; }
+.mm-comment { font-size: 13px; color: #444; line-height: 1.7; }
+.mm-comment b { color: #2b6cb0; font-weight: 600; }
+.mm-mini {
+  border: none; background: none; color: #bbb; font-size: 11px;
+  cursor: pointer; margin-left: 6px;
+}
+.mm-comment-form { display: flex; gap: 8px; margin-top: 8px; }
+.mm-comment-form input {
+  flex: 1; height: 32px; border: 1px solid #e2e2e2; border-radius: 6px;
+  padding: 0 10px; font-size: 13px; outline: none; background: #fff; color: #333;
+}
+
+/* ---------- 发动态 ---------- */
+.social-picks { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.moment-media { display: flex; gap: 8px; flex-wrap: wrap; }
+.mm-thumb { position: relative; width: 72px; height: 72px; border-radius: 6px; overflow: hidden; background: #f2f2f2; }
+.mm-thumb img, .mm-thumb video { width: 100%; height: 100%; object-fit: cover; }
+.mm-voice { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 11px; color: #666; }
+.mm-del {
+  position: absolute; top: 2px; right: 2px; width: 16px; height: 16px;
+  border-radius: 50%; border: none; background: rgba(0,0,0,.55); color: #fff;
+  font-size: 11px; line-height: 16px; cursor: pointer; padding: 0;
+}
+.emoji-pick {
+  display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px;
+  max-height: 140px; overflow-y: auto; padding: 6px; background: #fafafa;
+  border-radius: 6px; margin-bottom: 8px;
+}
+.emo-cell { border: none; background: none; font-size: 18px; cursor: pointer; padding: 2px; border-radius: 4px; }
+.emo-cell:hover { background: #eee; }
+
+/* ---------- 可见范围选择 ---------- */
+.target-list { max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; padding: 4px; }
+.target-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: 5px; cursor: pointer; font-size: 13px; color: #333;
+  justify-content: flex-start;
+}
+/* 勾选框固定小尺寸、贴左边，名字紧跟其后 */
+.target-row input[type="checkbox"] {
+  width: 15px; height: 15px; min-width: 15px; margin: 0; padding: 0;
+  flex: none; accent-color: #07c160; cursor: pointer;
+}
+.target-row > span { flex: 1; min-width: 0; text-align: left; }
+.target-row:hover { background: #f7f7f7; }
+.target-row.is-on { background: #f0f7ff; }
+.target-row input[disabled] { cursor: not-allowed; }
+.target-row i { font-style: normal; font-size: 11px; color: #aaa; margin-left: auto; }
+
+/* ---------- 靠北帖 ---------- */
+.fm-title { font-size: 15px; color: #222; margin: 10px 0 0; }
+.fm-tag {
+  font-size: 10.5px; color: #7a5c1f; background: #fff4d6;
+  border-radius: 4px; padding: 1px 5px; margin-left: 6px;
+}
+.fm-comment { font-size: 13px; color: #444; line-height: 1.8; }
+.fm-comment b { color: #2b6cb0; }
+.fm-comment i { font-style: normal; font-size: 11px; color: #bbb; margin-left: 6px; }
+.fm-gate {
+  background: #fff; border: 1px dashed #ddd; border-radius: 10px;
+  padding: 30px 20px; text-align: center; color: #666; font-size: 13.5px; line-height: 2;
+}
+.fm-member { display: flex; gap: 10px; align-items: center; padding: 8px 10px; background: #fff; border: 1px solid #eee; border-radius: 8px; }
+.fm-pick { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 12px; }
+.fm-tip { margin: 0 0 8px; }
+
+/* ---------- 管理端 ---------- */
+.admin-subtabs { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.admin-h4 { font-size: 13px; color: #444; margin: 14px 0 6px; }
+.mm-quote {
+  background: #fafafa; border-left: 3px solid #e0e0e0; padding: 6px 10px;
+  margin: 6px 0; font-size: 13px; color: #555; border-radius: 0 4px 4px 0;
+  white-space: pre-wrap; word-break: break-word;
+}
+.mm-report-head { display: flex; align-items: center; gap: 8px; }
+.word-add { display: flex; gap: 8px; margin-bottom: 6px; }
+.word-add input {
+  flex: 1; height: 34px; border: 1px solid #e2e2e2; border-radius: 6px;
+  padding: 0 10px; font-size: 13px; outline: none;
+}
+.word-list { display: flex; gap: 6px; flex-wrap: wrap; }
+.word-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #fff1f0; color: #c0392b; border: 1px solid #ffd6d2;
+  border-radius: 5px; padding: 3px 8px; font-size: 12.5px;
+}
+.word-chip button {
+  border: none; background: none; color: #c0392b; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0;
+}
+
+/* ---------- 新手指引 ---------- */
+.guide-layer { position: fixed; inset: 0; z-index: 9998; background: rgba(0, 0, 0, .55); }
+.guide-hole {
+  position: fixed; border-radius: 8px; box-shadow: 0 0 0 2px #4a9eff inset;
+  background: transparent; z-index: 9999; pointer-events: none;
+  transition: all .18s ease;
+}
+.guide-card {
+  position: fixed; z-index: 10000; width: 300px;
+  background: #fff; color: #333; border-radius: 10px; padding: 14px 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .25);
+  max-height: 72vh; overflow-y: auto;
+}
+.guide-step { font-size: 11px; color: #4a9eff; margin-bottom: 4px; }
+.guide-card h4 { margin: 0 0 6px; font-size: 15px; color: #222; }
+.guide-card p { margin: 0 0 12px; font-size: 12.5px; color: #666; line-height: 1.7; }
+.guide-btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: nowrap; }
+.guide-btns button { white-space: nowrap; flex: 0 0 auto; }
+/* 打开「跳过确认」弹窗时把指引层压到弹窗下面，否则按钮点不到 */
+.guide-layer.is-below { z-index: 60; }
+.guide-layer.is-below .guide-card,
+.guide-layer.is-below .guide-hole { z-index: 61; }
+
+@media (max-width: 820px) {
+  .pane-social { border-left: none; }
+  .social-list { padding: 10px 10px 60px; }
+  .mm-card, .fm-card { max-width: none; }
+  .guide-card { width: calc(100vw - 32px); left: 16px !important; }
+  .emoji-pick { grid-template-columns: repeat(6, 1fr); }
+}
+
+/* ===========================================================
+ * 独占主区域的大视图（收藏 / 文件 / 找朋友 / 抽奖 / 意见箱 / 设置 / 管理）
+ * =========================================================== */
+.pane-full {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f7f7f7;
+  border-left: 1px solid #e6e6e6;
+}
+.full-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #ececec;
+}
+.full-title { flex: 1; font-size: 15px; font-weight: 600; color: #333; }
+.full-ops { display: flex; gap: 8px; align-items: center; }
+.full-tabs { display: flex; gap: 8px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #ececec; flex-wrap: wrap; }
+.full-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.full-body::-webkit-scrollbar { width: 8px; }
+.full-body::-webkit-scrollbar-thumb { background: #d8d8d8; border-radius: 4px; }
+.full-foot {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid #ececec;
+  background: #fff;
+}
+.pane-full .set-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: #fff; border: 1px solid #ececec; border-radius: 8px;
+  max-width: 680px; width: 100%;
+}
+.pane-full .set-row > span:first-child { width: 96px; flex: none; color: #555; font-size: 13px; }
+.pane-full .field textarea,
+.pane-full .field input { width: 100%; }
+
+/* 靠北帖：帖（board）切换条 */
+.forum-boards {
+  display: flex; gap: 8px; padding: 10px 16px 0;
+  background: #fff; flex-wrap: wrap;
+}
+.forum-board-chip {
+  padding: 6px 12px; border: 1px solid #e0e0e0; border-radius: 16px;
+  background: #fafafa; font-size: 13px; color: #555; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.forum-board-chip.is-on { background: #e8f7ef; border-color: #07c160; color: #0a8f4d; font-weight: 600; }
+.forum-board-chip .fb-count { font-size: 11px; color: #999; }
+.forum-board-chip.is-on .fb-count { color: #0a8f4d; }
+.forum-board-new { border-style: dashed; color: #07c160; }
+
+/* 收藏 / 文件卡片 */
+.fav-card, .file-card {
+  background: #fff; border: 1px solid #ececec; border-radius: 10px;
+  padding: 12px 14px; max-width: 760px; width: 100%; margin: 0 auto;
+}
+.fav-head, .file-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.fav-kind {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  background: #eef4ff; color: #2b6cb0;
+}
+.fav-kind.k-moment { background: #eafaf1; color: #0a8f4d; }
+.fav-kind.k-forum { background: #fff4e6; color: #b26a00; }
+.fav-kind.k-ann { background: #fdecec; color: #c0392b; }
+.fav-text { font-size: 13.5px; color: #333; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.fav-media { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.fav-media img { width: 88px; height: 88px; object-fit: cover; border-radius: 6px; }
+.fav-meta { font-size: 11.5px; color: #999; margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.fav-ops { display: flex; gap: 8px; margin-top: 8px; }
+.file-card .f-thumb {
+  width: 44px; height: 44px; border-radius: 8px; background: #f1f1f1;
+  display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden;
+}
+.file-card .f-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.file-card .f-name { flex: 1; min-width: 0; font-size: 13.5px; color: #333; }
+.file-card .f-sub { font-size: 11.5px; color: #999; }
+
+/* 左侧栏项目变多时允许滚动 */
+.rail-nav { overflow-y: auto; overflow-x: hidden; }
+.rail-nav::-webkit-scrollbar { width: 0; }
+
+/* 公告卡片上的收藏星标：未收藏灰色空心 ☆，已收藏金色实心 ⭐ */
+.ann-fav {
+  cursor: pointer; font-size: 15px; color: #b8b8b8; line-height: 1;
+  transition: color .15s, transform .15s;
+}
+.ann-fav:hover { transform: scale(1.2); }
+.ann-fav.is-on { color: #f5a623; text-shadow: 0 0 6px rgba(245, 166, 35, .45); }
+/* 朋友圈 / 靠北帖 / 文件中心里带文字的收藏按钮 */
+.mm-act.is-on { color: #b26a00; font-weight: 600; }
+.btn-code.is-on { color: #b26a00; border-color: #f0d8a8; background: #fdf7e8; }
+
+/* 靠北帖成员挑选：搜索框 */
+.fm-pick-search { margin: 8px 0; }
+.fm-pick-search input {
+  width: 100%; height: 34px; border: 1px solid #e0e0e0; border-radius: 6px;
+  padding: 0 10px; font-size: 13px;
+}
+.fm-pick .target-list { max-height: 46vh; overflow-y: auto; }
+
+/* ---------- 找朋友：爱好多选 ---------- */
+.hobby-groups {
+  display: flex; flex-direction: column; gap: 12px;
+  max-width: 760px; width: 100%; margin: 0 auto;
+}
+.hobby-group {
+  background: #fff; border: 1px solid #ececec; border-radius: 10px; padding: 12px 14px;
+}
+.hobby-group-name { font-size: 12.5px; color: #888; font-weight: 600; margin-bottom: 8px; }
+.hobby-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.hobby-chip {
+  padding: 6px 13px; border: 1px solid #e4e4e4; border-radius: 16px;
+  background: #fafafa; font-size: 13px; color: #555; cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.hobby-chip:hover { border-color: #07c160; color: #0a8f4d; }
+.hobby-chip.is-on { background: #07c160; border-color: #07c160; color: #fff; font-weight: 600; }
+.hobby-bar {
+  display: flex; align-items: center; gap: 10px;
+  max-width: 760px; width: 100%; margin: 0 auto;
+}
+.hobby-count { margin-right: auto; font-size: 12.5px; color: #999; }
+/* 一个泡泡里可能有好几个爱好，允许换行 */
+.bubble-float .bf-hobby {
+  white-space: normal; word-break: break-word; line-height: 1.35;
+  max-width: 140px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ===========================================================
+ * 定位 / 地图
+ * =========================================================== */
+.msg-loc {
+  min-width: 190px; max-width: 260px; cursor: pointer;
+  border-radius: 8px; overflow: hidden; background: #fff;
+  border: 1px solid #e6e6e6;
+}
+.msg-loc .loc-top { display: flex; gap: 8px; padding: 10px 12px 8px; align-items: flex-start; }
+.msg-loc .loc-pin { font-size: 18px; line-height: 1.1; }
+.msg-loc .loc-name { font-size: 13.5px; font-weight: 600; color: #333; }
+.msg-loc .loc-addr { font-size: 11.5px; color: #999; margin-top: 2px; word-break: break-all; }
+.msg-loc .loc-open {
+  border-top: 1px solid #f0f0f0; padding: 6px 12px; font-size: 11.5px;
+  color: #5b8ff9; background: #fafbff;
+}
+.bubble .msg-loc { border: none; background: transparent; }
+.msg.is-self .bubble .msg-loc { background: rgba(255,255,255,.35); border-radius: 6px; }
+
+/* 地图弹窗 */
+.map-canvas {
+  width: 100%; height: 320px; border-radius: 8px; overflow: hidden;
+  border: 1px solid #e6e6e6; background: #f5f5f5; margin: 10px 0;
+}
+.map-canvas > div { width: 100%; height: 100%; }
+.map-empty { padding: 22px 16px; text-align: center; color: #666; font-size: 13px; line-height: 1.9; }
+.map-empty .map-empty-ico { font-size: 34px; margin-bottom: 6px; }
+.map-empty a { color: #5b8ff9; }
+.map-empty .merr { color: #c0392b; }
+
+/* 朋友圈定位 / 找朋友定位 */
+.mm-loc {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 8px;
+  padding: 5px 10px; border: 1px solid #dbe9ff; border-radius: 14px;
+  background: #f4f8ff; color: #2b6cb0; font-size: 12.5px; cursor: pointer;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mm-loc:hover { border-color: #5b8ff9; }
+.moment-loc-row { margin: -4px 0 10px; }
+.mm-loc-chip, .hobby-loc {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 14px; background: #eef6ff;
+  color: #2b6cb0; font-size: 12.5px;
+}
+.loc-clear {
+  border: none; background: none; cursor: pointer; color: #8ab4e8;
+  font-size: 14px; line-height: 1; padding: 0 0 0 2px;
+}
+.loc-clear:hover { color: #c0392b; }
+.hobby-loc:empty { display: none; }
+.bf-loc {
+  margin-top: 3px; border: none; background: rgba(255,255,255,.85); border-radius: 10px;
+  font-size: 10.5px; color: #2b6cb0; padding: 1px 7px; cursor: pointer; max-width: 130px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bf-loc:hover { background: #fff; text-decoration: underline; }
+.loc-warn { color: #d97706; font-size: 12px; }
+
+/* 更多（占位） */
+.more-placeholder {
+  margin: auto; text-align: center; color: #666; line-height: 1.9;
+  background: #fff; border: 1px dashed #ddd; border-radius: 12px;
+  padding: 40px 24px; max-width: 460px; width: 100%;
+}
+.more-placeholder .more-ico { font-size: 38px; margin-bottom: 8px; }
+
+/* ---------- 设置：音量 / 字号 ---------- */
+.vol-val { width: 44px; text-align: right; font-size: 12.5px; color: #888; }
+.pane-full input[type="range"] {
+  -webkit-appearance: none; appearance: none; background: transparent;
+}
+.pane-full input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px; background: #e6e6e6;
+}
+.pane-full input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px;
+  border-radius: 50%; background: #07c160; border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2); cursor: pointer;
+}
+/* 聊天字号 */
+html[data-fs="small"] .bubble { font-size: 12.5px; }
+html[data-fs="normal"] .bubble { font-size: 13.5px; }
+html[data-fs="large"] .bubble { font-size: 15.5px; }
+html[data-fs="huge"] .bubble { font-size: 17.5px; }
+html[data-fs="large"] #msgInput, html[data-fs="huge"] #msgInput { font-size: 15px; }
+
+/* ---------- 意见箱（CMO 查看） ---------- */
+.fb-admin-list { display: flex; flex-direction: column; gap: 10px; }
+.fb-card {
+  background: #fff; border: 1px solid #ececec; border-radius: 10px;
+  padding: 12px 14px; max-width: 760px; width: 100%; margin: 0 auto;
+}
+.fb-card-head { display: flex; align-items: center; gap: 10px; }
+.fb-card-av {
+  width: 34px; height: 34px; border-radius: 8px; background: #eef4ff;
+  display: flex; align-items: center; justify-content: center; font-size: 16px; flex: none;
+}
+.fb-card-meta { flex: 1; min-width: 0; }
+.fb-card-name { font-size: 13.5px; font-weight: 600; color: #333; }
+.fb-card-wxid { font-size: 11.5px; color: #999; font-weight: 400; margin-left: 6px; }
+.fb-card-time { font-size: 11.5px; color: #a0a0a0; margin-top: 2px; }
+.fb-card-text {
+  margin-top: 10px; font-size: 13.5px; line-height: 1.75; color: #444;
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* ===========================================================
+ * 更多 → 游戏 / 音乐
+ * =========================================================== */
+.games-tip { flex: 1; font-size: 12.5px; color: #b26a00; background: #fff4e6; padding: 5px 10px; border-radius: 12px; }
+.games-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px; max-width: 900px; width: 100%; margin: 0 auto;
+}
+.game-card {
+  background: #fff; border: 1px solid #ececec; border-radius: 10px;
+  overflow: hidden; cursor: pointer; transition: transform .15s, box-shadow .15s;
+  display: flex; flex-direction: column;
+}
+.game-card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.game-card.is-pinned { border-color: #f5b942; }
+.gc-cover { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #f5f6f8; }
+.gc-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gc-pin {
+  position: absolute; top: 6px; left: 6px; font-size: 11px;
+  background: rgba(255,255,255,.92); color: #b26a00; padding: 2px 8px; border-radius: 10px;
+}
+.gc-name {
+  padding: 9px 10px; font-size: 13px; font-weight: 600; color: #333;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gc-ops { display: flex; gap: 6px; padding: 0 10px 10px; }
+.gc-ops .btn-code { flex: 1; font-size: 12px; height: 28px; padding: 0 6px; }
+
+/* ---------- 找朋友：主界面只放泡泡海，爱好选择收进弹窗 ---------- */
+#findView .bubble-sea {
+  flex: 1; min-height: 420px; width: 100%;
+}
+.bubble-form-scroll {
+  max-height: 46vh; overflow-y: auto;
+  border: 1px solid #ececec; border-radius: 8px; padding: 6px 10px;
+  background: #fcfcfc;
+}
+.hobby-bar { max-width: none; margin: 10px 0 0; }
+
+/* ---------- 抽奖（大区域版） ---------- */
+/* .btn-primary 全局 width:100%，在底部操作条里会挤爆其他按钮 */
+.full-foot .btn-primary,
+.full-foot .btn-code,
+.full-foot .btn-ghost {
+  width: auto; flex: none; margin-top: 0; white-space: nowrap;
+}
+.full-foot .btn-primary { padding: 0 46px; }
+/* 刮刮卡：奖品被涂层盖住，刮开才可见 */
+.lk-card .lk-value { z-index: 0; }
+.lk-card canvas { z-index: 1; }
+.lk-result .lk-value { position: static; font-size: 26px; color: #c8102e; }
+
+/* 游戏封面：favicon 加载失败时显示首字色块 */
+.gc-cover { position: relative; }
+.gc-letter {
+  position: absolute; inset: 0; z-index: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; font-weight: 700;
+}
+.gc-cover img {
+  position: absolute; inset: 0; z-index: 1;
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+
+/* 消息审查：每条消息后的删除按钮（.admin-msg 本身已是 flex） */
+.admin-msg .am-body { flex: 1; min-width: 0; }
+.admin-msg .mini-op { flex: none; }
+
+/* 抽签模式隐藏主题选择条（display:flex 会盖掉 hidden 属性，需显式规则） */
+.lucky-themes[hidden] { display: none; }
+
+/* 移动端「我的资料」按钮：桌面隐藏，mobile.css 中显示 */
+.rail-btn-mob-avatar { display: none; }
+
+/* ---------- 设置页 · 自定义聊天背景 ---------- */
+.bg-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.bg-panel { margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(127,127,127,.06); }
+.bg-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.bg-swatch { width: 34px; height: 34px; border-radius: 8px; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.bg-swatch:hover { transform: scale(1.08); border-color: var(--wx-green); }
+.bg-custom { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.bg-custom input[type=color] { width: 44px; height: 32px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: none; cursor: pointer; }
+.bg-custom select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: none; color: inherit; }
+
+/* ---------- 我的二维码 / 扫一扫 / 好友申请语 ---------- */
+.qr-layer { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; }
+.qr-box { background: var(--bubble-other, #fff); color: var(--text, #191919); border-radius: 12px; padding: 20px 22px; width: min(340px, 92vw); max-height: 86vh; overflow-y: auto; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+.qr-box h3 { margin: 0 0 12px; font-size: 16px; }
+.qr-box .field { text-align: left; margin: 10px 0; }
+.qr-box textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line, #e3e3e3); border-radius: 8px; font: inherit; resize: none; }
+.qr-kb { margin: 10px 0 4px; font-size: 14px; }
+.qr-box .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
