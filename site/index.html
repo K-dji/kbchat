@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>靠北 Chat</title>
+<link rel="icon" type="image/png" href="/assets/kb-logo.png">
+<link rel="stylesheet" href="css/app.css?v=20261115c">
+<link rel="stylesheet" href="css/social.css?v=20261113m">
+<link rel="stylesheet" href="css/mobile.css?v=20261113m">
+<script>try{if(/KBChatApp\//.test(navigator.userAgent))document.documentElement.classList.add('kb-app')}catch(e){}</script>
+</head>
+<body>
+
+<!-- 启动屏：深色品牌底 + logo 静止淡入 + 加载条（点击可跳过） -->
+<div id="kbSplash" style="position:fixed;inset:0;z-index:999999;background:#0a1233;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity .45s ease;overflow:hidden;cursor:pointer">
+  <div style="animation:kbsIn .8s cubic-bezier(.22,1,.36,1) both;text-align:center">
+    <img src="/assets/kb-avatar.png" alt="靠北Chat" draggable="false" style="width:min(60vw,280px);height:auto;border-radius:26px;box-shadow:0 22px 70px rgba(0,0,0,.55);pointer-events:none;user-select:none;-webkit-user-drag:none;display:inline-block">
+    <p style="margin:20px 0 0;font-size:12px;color:#7f8db0;letter-spacing:7px;font-weight:600">KAIBEI CHAT</p>
+  </div>
+  <div style="position:absolute;bottom:68px;left:50%;transform:translateX(-50%);width:min(46vw,200px);height:3px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden">
+    <div style="height:100%;width:44%;border-radius:3px;background:linear-gradient(90deg,transparent,#07C160 45%,#07C160 55%,transparent);animation:kbsBar 1.15s ease-in-out infinite"></div>
+  </div>
+  <style>
+    @keyframes kbsIn { from { opacity:0 } to { opacity:1 } }
+    @keyframes kbsBar { from { transform:translateX(-110%) } to { transform:translateX(280%) } }
+    @media (prefers-reduced-motion: reduce) {
+      #kbSplash img, #kbSplash div { animation: none !important; }
+    }
+    /* App 内隐藏所有「下载 App」入口（App 自己就是客户端） */
+    html.kb-app #rowApkDl,
+    html.kb-app .apk-entry,
+    html.kb-app #btnProductDl,
+    html.kb-app .pi-download { display:none !important }
+  </style>
+</div>
+<script>
+(function(){
+  var sp = document.getElementById('kbSplash')
+  function hide(){ if (!sp || sp.dataset.out) return; sp.dataset.out = '1'; sp.style.opacity = '0'; setTimeout(function(){ if (sp && sp.parentNode) sp.parentNode.removeChild(sp) }, 500) }
+  sp.onclick = hide
+  setTimeout(hide, 2000)
+})();
+</script>
+
+<div class="desktop" id="desktop">
+
+  <!-- ============ 登录页 ============ -->
+  <section class="login-wrap" id="loginView" hidden>
+    <div class="login-box" id="loginBox">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-logo"><img src="/assets/kb-logo.png" alt="靠北Chat" draggable="false"></div>
+        <div class="login-title">靠北 Chat</div>
+        <div class="login-sub">网页版 · 多人在线实时聊天</div>
+      </div>
+
+      <div class="login-tabs" id="loginTabs">
+        <button type="button" class="ltab is-on" data-tab="login">登录</button>
+        <button type="button" class="ltab" data-tab="reg">注册</button>
+      </div>
+
+      <!-- 登录 -->
+      <form class="lpanel is-on" id="panelLogin" autocomplete="off">
+        <div class="field">
+          <label>KB号</label>
+          <input id="wxidLogin" maxlength="20" placeholder="字母 / 数字 / 下划线，3-20 位">
+          <p class="field-err" id="wxidLoginErr"></p>
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input id="pwdLogin" type="password" maxlength="30" placeholder="请输入登录密码">
+          <p class="field-err" id="pwdLoginErr"></p>
+        </div>
+        <button type="submit" class="btn-primary" id="loginBtn">登 录</button>
+        <div class="recent-acc" id="recentAcc" hidden></div>
+        <p class="login-link"><a href="javascript:;" id="lnkForgot">忘记密码 / 找回账号</a></p>
+        <p class="login-link"><a href="javascript:;" id="lnkAsk">我有疑问（问问 CMO）</a></p>
+        <p class="login-link"><a href="javascript:;" id="lnkDelList">用户删除名单</a></p>
+        <p class="login-link"><a href="javascript:;" id="lnkProduct">ⓘ 产品信息</a></p>
+      </form>
+
+      <!-- 找回密码 -->
+      <form class="lpanel" id="panelRecover" autocomplete="off">
+        <div class="seg ann-seg" id="rcModeTabs" style="margin-bottom:12px">
+          <button type="button" class="is-on" data-rm="quiz">密保问答找回</button>
+          <button type="button" data-rm="name">姓名 + 同网络</button>
+        </div>
+        <!-- 方式一：密保问答（推荐） -->
+        <div id="rcQuizBox">
+          <p class="lpanel-tip">填入真实姓名与 KB号，回答注册时设置的 3 个密保问题，答对即可重设密码（不限制网络环境）。</p>
+          <div class="field">
+            <label>真实姓名</label>
+            <input id="rcQuizRealName" maxlength="20" placeholder="注册时填写的真实姓名">
+          </div>
+          <div class="field">
+            <label>KB号</label>
+            <input id="rcQuizWxid" maxlength="20" placeholder="你的 KB号">
+          </div>
+          <div class="field" id="rcQuizQBox" hidden>
+            <label>密保问题（逐一回答）</label>
+            <div id="rcQuizList"></div>
+          </div>
+          <div class="field" id="rcQuizPwdBox" hidden>
+            <label>新密码</label>
+            <input id="rcQuizPwd" type="password" maxlength="30" placeholder="至少 8 位">
+          </div>
+          <p class="field-err" id="rcQuizErr"></p>
+          <button type="button" class="btn-primary" id="btnRcQuizNext" style="width:100%;height:40px">获取我的密保问题</button>
+          <p class="login-link"><a href="javascript:;" id="lnkBackLogin2">返回登录</a></p>
+        </div>
+        <!-- 方式二：姓名 + 同网络（未设置密保问答的老用户） -->
+        <div id="rcNameBox" hidden>
+        <p class="lpanel-tip">仅限在<b>注册时所用的同一网络环境</b>下操作：先验证真实姓名，再重设KB号与密码，聊天记录不会丢失。</p>
+        <div class="field">
+          <label>用当前网络环境查找我的账号</label>
+          <button type="button" class="btn-code" id="btnRcByIp" style="width:100%;height:38px">🔍 查找同网络环境下的账号</button>
+          <div class="rc-ip-result" id="rcIpResult"></div>
+        </div>
+        <div class="field">
+          <label>真实姓名</label>
+          <input id="rcName" maxlength="20" placeholder="注册时填写的真实姓名">
+          <p class="field-err" id="rcNameErr"></p>
+        </div>
+        <div class="field" id="rcAccountBox" hidden>
+          <label>选择要找回的账号</label>
+          <div class="rc-list" id="rcList"></div>
+        </div>
+        <div class="field" id="rcNewBox" hidden>
+          <label>新KB号（不改请留空）</label>
+          <input id="rcNewWxid" maxlength="20" placeholder="字母 / 数字 / 下划线，3-20 位">
+        </div>
+        <div class="field" id="rcPwdBox" hidden>
+          <label>新密码</label>
+          <input id="rcNewPwd" type="password" maxlength="30" placeholder="至少 8 位">
+        </div>
+        <button type="submit" class="btn-primary" id="rcBtn">验 证 真 实 姓 名</button>
+        <p class="login-link"><a href="javascript:;" id="lnkBackLogin3">返回登录</a></p>
+        </div><!-- /rcNameBox -->
+      </form>
+
+      <!-- 注册 -->
+      <form class="lpanel" id="panelReg" autocomplete="off">
+        <div class="field">
+          <label>KB号</label>
+          <input id="regWxid" maxlength="20" placeholder="字母 / 数字 / 下划线，3-20 位">
+          <p class="field-err" id="regWxidErr"></p>
+        </div>
+        <div class="field">
+          <label>昵称</label>
+          <input id="regNick" maxlength="16" placeholder="好友看到的名字">
+          <p class="field-err" id="regNickErr"></p>
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input id="regPwd" type="password" maxlength="30" placeholder="请设置登录密码（至少 8 位，勿用常见弱口令）">
+          <p class="field-err" id="regPwdErr"></p>
+        </div>
+        <div class="field">
+          <label>真实姓名</label>
+          <input id="regRealName" maxlength="20" placeholder="用于忘记密码时验证身份，仅管理员可见">
+          <p class="field-err" id="regNameErr"></p>
+        </div>
+        <div class="field">
+          <label>性别</label>
+          <div class="seg gender-seg" id="regGender">
+            <button type="button" data-g="male">👦 男生</button>
+            <button type="button" data-g="female">👧 女生</button>
+            <button type="button" data-g="secret" class="is-on">🔒 隐私</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>头像</label>
+          <div class="avatar-pick compact">
+            <div class="avatar-preview" id="regAvatarPreview">😊</div>
+            <div class="avatar-list" id="regAvatarList"></div>
+          </div>
+          <div class="avatar-album">
+            <button type="button" class="btn-code" id="btnRegAlbum">🖼️ 从图库选择</button>
+            <span class="album-tip" id="regAlbumTip">也可直接使用上面的表情头像</span>
+          </div>
+          <input type="file" id="regAvatarPicker" accept="image/*" hidden>
+        </div>
+        <div class="field">
+          <label>个性签名（选填）</label>
+          <input id="regSign" maxlength="40" placeholder="这个人很懒，什么都没写">
+        </div>
+        <div class="field">
+          <label>界面语言 / Language</label>
+          <select id="regLang" style="width:100%;height:38px;">
+            <option value="zh-CN">中国简体</option>
+            <option value="zh-TW">中国繁体</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ru">Русский</option>
+            <option value="ko">한국어</option>
+            <option value="th">ไทย</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-primary" id="regBtn">注 册 并 进 入</button>
+      </form>
+
+      <p class="login-msg" id="loginMsg"></p>
+      <p class="login-foot" id="loginFoot">把这个KB号告诉朋友，双方就能互相添加并实时聊天</p>
+      <div class="brand-foot">
+        <span class="copy-mark">C</span>
+        <span class="brand-foot-txt"><b>本项目由个人开发者「靠北科技」运营（非商业团队）</b><i>2026-靠北 Chat</i></span>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ============ 主界面 ============ -->
+  <section class="main" id="mainView" hidden>
+    <!-- 左侧图标栏 -->
+    <aside class="rail">
+      <div class="rail-avatar" id="railAvatar" title="我的资料">😊</div>
+      <nav class="rail-nav">
+        <button class="rail-btn" id="btnAddMenu" title="发起会话"><span class="ico">➕</span></button>
+        <button class="rail-btn is-on" data-nav="chats" title="聊天">
+          <span class="ico">💬</span><i class="dot" id="railDot" hidden></i>
+        </button>
+        <button class="rail-btn" data-nav="contacts" title="通讯录">
+          <span class="ico">👥</span><i class="dot" id="contactDot" hidden></i>
+        </button>
+        <button class="rail-btn" data-nav="forum" title="靠北帖">
+          <span class="ico">📋</span><i class="dot" id="forumDot" hidden></i>
+        </button>
+        <button class="rail-btn" data-nav="moments" title="朋友圈">
+          <span class="ico">🌐</span><i class="dot" id="momentDot" hidden></i>
+        </button>
+        <button class="rail-btn" data-nav="ann" title="公告栏">
+          <span class="ico">📢</span><i class="dot" id="annDot" hidden></i>
+        </button>
+        <button class="rail-btn" data-nav="find" title="找朋友"><span class="ico">🤝</span></button>
+        <button class="rail-btn" data-nav="lucky" title="抽奖"><span class="ico">🎲</span></button>
+        <button class="rail-btn" data-nav="more" id="btnMore" title="游戏"><span class="ico">🎮</span></button>
+        <div class="rail-more" id="railMore">
+          <button class="rail-btn" id="btnRailMore" title="更多"><span class="ico">☰</span></button>
+          <div class="rail-flyout" id="railFlyout">
+            <button class="rail-btn" data-nav="files" title="文件"><span class="ico">📁</span></button>
+            <button class="rail-btn" data-nav="favorites" title="收藏"><span class="ico">⭐</span></button>
+            <button class="rail-btn" data-nav="feedback" title="意见箱"><span class="ico">📮</span></button>
+          </div>
+        </div>
+        <button class="rail-btn" data-nav="settings" id="btnSettings2" title="设置"><span class="ico">⚙️</span></button>
+      </nav>
+      <div class="rail-bottom">
+        <button class="rail-btn" data-nav="admin" id="btnAdmin" title="管理面板" hidden><span class="ico">🛡️</span></button>
+      </div>
+    </aside>
+
+    <!-- 移动端底部导航（竖屏：手机/平板） -->
+    <nav class="mtab" id="mtabNav" hidden>
+      <button class="mtab-btn is-on" data-mv="chats">
+        <svg viewBox="0 0 24 24"><path d="M12 3C6.5 3 2 6.9 2 11.7c0 2.8 1.6 5.3 4 6.9V22l3.3-1.8c.9.2 1.8.3 2.7.3 5.5 0 10-3.9 10-8.7S17.5 3 12 3z" fill="currentColor"/></svg>
+        <span>聊天</span>
+        <i class="mtab-badge" id="mtabBadge" hidden></i>
+      </button>
+      <button class="mtab-btn" data-mv="forum">
+        <svg viewBox="0 0 24 24"><path d="M4 10v4a1 1 0 0 0 1 1h2.5l5.5 4.4V4.6L7.5 9H5a1 1 0 0 0-1 1z" fill="currentColor"/><path d="M16.5 8.5c1.3.9 2 2.1 2 3.5s-.7 2.6-2 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>靠北帖</span>
+      </button>
+      <button class="mtab-btn" data-mv="moments">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>
+        <span>朋友圈</span>
+      </button>
+      <button class="mtab-btn" data-mv="discover">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 8.5 13.4 13.4 8.5 15.5 10.6 10.6z" fill="currentColor"/></svg>
+        <span>发现</span>
+      </button>
+      <button class="mtab-btn" data-mv="me">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>我的</span>
+      </button>
+    </nav>
+    <div class="mtab-drawer" id="mtabDrawer" hidden></div>
+
+    <!-- 中间列表栏 -->
+    <div class="pane pane-list">
+      <header class="list-head">
+        <div class="search-box">
+          <span class="s-ico">🔍</span>
+          <input id="searchInput" placeholder="搜索">
+        </div>
+        <button class="add-btn" id="btnCreate">＋</button>
+        <button class="add-btn" id="btnMoreFloat" title="更多功能">⋯</button>
+      </header>
+      <div class="list-scroll" id="listScroll">
+        <div class="chat-ann" id="chatAnnBanner" hidden></div>
+        <div class="list-stack" id="chatList"></div>
+        <div class="list-stack" id="contactList" hidden></div>
+        <div class="list-stack" id="miscList" hidden></div>
+      </div>
+    </div>
+
+    <!-- 右侧聊天栏 -->
+    <div class="pane pane-chat">
+      <header class="chat-head" id="chatHead">
+        <button class="back-btn" id="btnBack" hidden aria-label="返回"><svg viewBox="0 0 24 24" width="27" height="27"><path d="M15.5 3.8 7.3 12l8.2 8.2" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="chat-title" id="chatTitle">靠北 Chat</div>
+        <span class="chat-status" id="chatStatus"></span>
+        <button class="more-btn" id="btnChatMore">⋯</button>
+      </header>
+
+      <!-- AI 左侧栏（元宝式：新对话 + 历史会话列表） -->
+      <div class="ai-sidebar" id="aiSidebar">
+        <div class="ai-side-head">
+          <button type="button" class="ai-side-toggle" id="aiSideToggle" title="收起对话记录">‹</button>
+          <button type="button" class="ai-side-new" id="aiSideNew">🆕 新对话</button>
+        </div>
+        <div class="ai-side-title">最近</div>
+        <div class="ai-side-list" id="aiSideList"></div>
+      </div>
+      <button type="button" class="side-expand" id="btnSideExpand" title="展开侧栏">☰</button>
+
+      <div class="msg-scroll" id="msgScroll">
+        <div class="msg-stack" id="msgStack"></div>
+      </div>
+      <button type="button" class="jump-bottom" id="jumpBottom" hidden>回到底部 ↓ <span id="jumpNewCount"></span></button>
+
+      <div class="empty-chat" id="emptyChat">
+        <div class="empty-logo">靠</div>
+        <p>选择一个会话开始聊天</p>
+        <p class="empty-tip">在通讯录里用KB号添加好友，消息将实时送达</p>
+      </div>
+
+      <footer class="composer" id="composer" hidden>
+        <div id="aiBar" hidden>
+          <div class="ai-chip-wrap">
+            <span class="ai-chip-holder">
+              <button type="button" class="ai-chip" id="aiModeBtn">⚡ 快速回答 <span class="ai-caret">▾</span></button>
+              <div class="ai-mode-menu" id="aiMode" hidden>
+                <button type="button" class="is-on" data-am="quick">⚡ 快速回答<span class="ai-mode-desc">直接给出答案，速度最快</span></button>
+                <button type="button" data-am="deep">🔍 深度思考<span class="ai-mode-desc">先联网搜索，再结合资料回答</span></button>
+                <button type="button" data-am="expert">🎓 专家模式<span class="ai-mode-desc">深度研究 · 阅读网页原文 · 回答更全面</span></button>
+              </div>
+            </span>
+          <select id="aiModel" class="ai-chip ai-select" title="选择模型">
+            <option value="glm-4-flash">GLM-4-Flash</option>
+            <option value="glm-4-flash-250414">GLM-4-Flash-250414</option>
+            <option value="glm-4v-flash">GLM-4V-Flash（识图）</option>
+            <optgroup label="管理员专属（CMO 全模型）" id="adminModels" hidden>
+              <option value="glm-4.7">GLM-4.7（最新）</option>
+              <option value="glm-4.6">GLM-4.6</option>
+              <option value="glm-4.5">GLM-4.5</option>
+              <option value="glm-4.5-flash">GLM-4.5-Flash</option>
+              <option value="glm-4-plus">GLM-4-Plus</option>
+              <option value="glm-4-air">GLM-4-Air</option>
+              <option value="glm-4-airx">GLM-4-AirX</option>
+              <option value="glm-4-long">GLM-4-Long（超长上下文）</option>
+              <option value="glm-4-flashx">GLM-4-FlashX</option>
+              <option value="glm-4v-plus">GLM-4V-Plus（识图）</option>
+            </optgroup>
+          </select>
+            <button type="button" class="ai-chip" id="btnAiImage">🖼️ 发图片</button>
+            <button type="button" class="ai-chip" id="aiNewChat">🆕 新对话</button>
+            <button type="button" class="ai-chip" id="aiHistory">🕘 历史对话</button>
+          </div>
+        </div>
+        <div class="sheet-mask" id="moreMask" hidden></div>
+        <div class="more-grid" id="moreGrid" hidden>
+          <button class="more-item" id="btnImage" type="button"><span class="mi-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="3"/><circle cx="8.8" cy="9.6" r="1.7" fill="currentColor" stroke="none"/><path d="M4.5 16.8l4.2-4.2c.6-.6 1.5-.6 2.1 0l4.7 4.7"/><path d="M13.6 15.4l2.3-2.3c.6-.6 1.5-.6 2.1 0l2.5 2.5"/></svg></span><span>相册</span></button>
+          <button class="more-item" id="btnCamera" type="button"><span class="mi-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.3l1.1-1.6c.2-.3.5-.4.8-.4h4.6c.3 0 .6.1.8.4L16.2 6h1.3A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.4" r="3.3"/></svg></span><span>拍摄</span></button>
+          <button class="more-item" id="btnFile" type="button"><span class="mi-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7A2.5 2.5 0 0 1 6 4.5h3c.7 0 1.4.3 1.8.9l.9 1.1H18A2.5 2.5 0 0 1 20.5 9v8a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 17z"/></svg></span><span>文件</span></button>
+          <button class="more-item" id="btnVideo" type="button"><span class="mi-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6.5" width="12.5" height="11" rx="2.5"/><path d="M15.5 10.8l4.2-2.8c.5-.3 1.3 0 1.3.7v6.6c0 .7-.8 1-1.3.7l-4.2-2.8z"/></svg></span><span>视频</span></button>
+          <button class="more-item" id="btnLocation" type="button"><span class="mi-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.5-6.5-10a6.5 6.5 0 0 1 13 0c0 4.5-6.5 10-6.5 10z"/><circle cx="12" cy="10.8" r="2.3"/></svg></span><span>位置</span></button>
+          <button class="more-item" id="btnScanChat" type="button"><span class="mi-ico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M3.5 12h17"/></svg></span><span>扫一扫</span></button>
+        </div>
+        <div class="composer-main">
+          <button class="tool" id="btnVoice" title="语音 / 键盘切换">🎙️</button>
+          <textarea id="msgInput" rows="3" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+          <button type="button" class="hold-talk" id="holdTalk" hidden>按 住 说 话</button>
+          <button class="tool" id="btnEmoji" title="表情">😊</button>
+          <button class="tool" id="btnPlus" title="更多功能">＋</button>
+        </div>
+        <div class="composer-foot">
+          <span class="hint">Enter 发送 / Shift+Enter 换行</span>
+          <button class="btn-send" id="btnSend">发送(S)</button>
+        </div>
+        <input type="file" id="filePicker" accept="image/*" hidden>
+        <input type="file" id="camPicker" accept="image/*" capture="environment" hidden>
+        <input type="file" id="videoPicker" accept="video/*" hidden>
+      </footer>
+    </div>
+
+    <!-- 多选操作条 -->
+    <div class="multi-bar" id="multiBar" hidden>
+      <span id="multiCount">已选 0 条</span>
+      <button class="btn-code" id="mbMerge">合并转发</button>
+      <button class="btn-code" id="mbEach">逐条转发</button>
+      <button class="btn-code" id="mbDel">删除</button>
+      <button class="btn-code" id="mbCancel">取消</button>
+    </div>
+
+    <!-- 公告栏视图（占满主区域） -->
+    <div class="pane pane-ann" id="annView" hidden>
+      <header class="list-head">
+        <div class="ann-view-title">📢 公告栏</div>
+        <button class="add-btn" id="btnAnnCreate" title="发布公告">＋</button>
+      </header>
+      <div class="ann-view-tabs" id="annTabsView">
+        <button type="button" class="atab is-on" data-t="group">群公告</button>
+        <button type="button" class="atab" data-t="direct">指定公告</button>
+        <button type="button" class="atab" data-t="normal">普通 Chat 公告</button>
+        <button type="button" class="atab" data-t="important">重要 Chat 公告</button>
+      </div>
+      <div class="ann-list-full" id="annListFull"><p class="muted">加载中…</p></div>
+      <footer class="ann-view-foot">
+        <button class="btn-code" id="btnAnnFormView">📢 发布公告</button>
+        <button class="btn-code" id="btnAnnReadView">一键已读</button>
+        <span class="muted" id="annUnreadTip"></span>
+      </footer>
+    </div>
+
+    <!-- 靠北帖（论坛）视图：CMO 可建多个帖，每帖独立成员 -->
+    <div class="pane pane-social" id="forumView" hidden>
+      <header class="list-head">
+        <div class="social-view-title">📋 靠北帖</div>
+        <button class="add-btn" id="btnForumCreate" title="发帖 / 新建帖">＋</button>
+      </header>
+      <div class="forum-boards" id="forumBoards"></div>
+      <div class="social-tabs" id="forumTabs">
+        <button type="button" class="atab is-on" data-t="posts">帖子</button>
+        <button type="button" class="atab" data-t="members">成员</button>
+      </div>
+      <div class="social-list" id="forumList"><p class="muted">加载中…</p></div>
+    </div>
+
+    <!-- 朋友圈视图 -->
+    <div class="pane pane-social" id="momentsView" hidden>
+      <header class="list-head">
+        <div class="social-view-title">🌐 朋友圈</div>
+        <button class="add-btn" id="btnMomentCreate" title="发布动态">＋</button>
+      </header>
+      <div class="social-tabs" id="momentTabs">
+        <button type="button" class="atab is-on" data-t="all">全部动态</button>
+        <button type="button" class="atab" data-t="mine">我的动态</button>
+      </div>
+      <div class="weather-card" id="weatherCard" hidden></div>
+      <div class="social-list" id="momentList"><p class="muted">加载中…</p></div>
+    </div>
+
+    <!-- 收藏视图 -->
+    <div class="pane pane-full" id="favoritesView" hidden>
+      <header class="full-head">
+        <div class="full-title">⭐ 收藏</div>
+      </header>
+      <div class="full-tabs" id="favTabs">
+        <button type="button" class="atab is-on" data-t="all">全部</button>
+        <button type="button" class="atab" data-t="chat">聊天</button>
+        <button type="button" class="atab" data-t="moment">朋友圈</button>
+        <button type="button" class="atab" data-t="forum">靠北帖</button>
+        <button type="button" class="atab" data-t="ann">公告</button>
+      </div>
+      <div class="full-body" id="favList"><p class="muted">加载中…</p></div>
+    </div>
+
+    <!-- 文件视图 -->
+    <div class="pane pane-full" id="filesView" hidden>
+      <header class="full-head">
+        <div class="full-title">📁 文件</div>
+      </header>
+      <div class="full-body" id="filesList"><p class="muted">加载中…</p></div>
+    </div>
+
+    <!-- 找朋友视图 -->
+    <div class="pane pane-full" id="findView" hidden>
+      <header class="full-head">
+        <div class="full-title">🤝 找朋友</div>
+        <div class="full-ops">
+          <button type="button" class="btn-primary" id="btnBubbleSend">🫧 发出泡泡</button>
+          <button type="button" class="btn-code" id="btnBubbleDel">删除我的泡泡</button>
+        </div>
+      </header>
+      <div class="full-body">
+        <p class="muted">把你的爱好发出去，变成泡泡慢慢飞；点别人的泡泡就能申请加好友。</p>
+        <div class="bubble-sea" id="bubbleSea"><p class="muted">加载中…</p></div>
+      </div>
+    </div>
+
+    <!-- 抽奖视图 -->
+    <div class="pane pane-full" id="discoverView" hidden>
+      <header class="full-head">
+        <div class="full-title">🧭 发现</div>
+      </header>
+      <div class="full-body">
+        <div class="discover-grid" id="discoverGrid"></div>
+      </div>
+    </div>
+    <div class="pane pane-full" id="luckyView" hidden>
+      <header class="full-head">
+        <div class="full-title">🎲 抽奖</div>
+      </header>
+      <div class="full-body">
+        <div class="lucky-limited" id="luckyLimited"><p class="muted">加载中…</p></div>
+        <div class="lucky-themes" id="luckyThemes"></div>
+        <div class="seg lucky-modes" id="luckyModes">
+          <button type="button" class="lm is-on" data-m="wheel">转盘</button>
+          <button type="button" class="lm" data-m="scratch">刮刮卡</button>
+          <button type="button" class="lm" data-m="draw">抽签</button>
+        </div>
+        <div class="lucky-items" id="luckyItems"></div>
+        <div class="lucky-result" id="luckyResult"><p class="muted">选择主题与模式后开始</p></div>
+      </div>
+      <footer class="full-foot">
+        <button class="btn-ghost" id="btnLuckyAdmin" hidden>发布限时抽奖</button>
+        <button class="btn-code" id="btnLuckySend" hidden>发到群里</button>
+        <button class="btn-primary" id="btnLuckyGo">开始</button>
+      </footer>
+    </div>
+
+    <!-- 意见箱视图 -->
+    <div class="pane pane-full" id="feedbackView" hidden>
+      <header class="full-head">
+        <div class="full-title">📮 意见箱</div>
+      </header>
+      <div class="full-body">
+        <!-- 普通用户：写意见 -->
+        <div id="fbCompose">
+          <p class="muted">你的意见将直接发送给管理员 KB靠北科技（CMO）。</p>
+          <div class="field"><textarea id="fbText" rows="8" maxlength="500" placeholder="写下你的意见或建议…"></textarea></div>
+          <p class="field-err" id="fbErr"></p>
+          <div class="full-foot">
+            <button class="btn-primary" id="btnFbOk">发送</button>
+          </div>
+        </div>
+        <!-- CMO：查看用户提交的意见 -->
+        <div id="fbAdmin" hidden>
+          <div class="full-tabs" id="fbAdminTabs">
+            <button type="button" class="atab is-on" data-f="all">全部意见</button>
+            <button type="button" class="atab" data-f="today">今天</button>
+            <button type="button" class="atab" data-f="week">近 7 天</button>
+            <button type="button" class="atab" data-f="guest">登录页提问</button>
+          </div>
+          <div class="fb-admin-list" id="fbAdminList"><p class="muted">加载中…</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 设置视图 -->
+    <div class="pane pane-full" id="settingsView" hidden>
+      <header class="full-head">
+        <div class="full-title">⚙️ 设置</div>
+      </header>
+      <div class="full-body">
+        <div class="set-row"><span>主题模式</span>
+          <select id="setTheme" style="flex:1;height:34px;">
+            <option value="light">浅色模式</option>
+            <option value="dark">深色模式</option>
+            <option value="auto">跟随系统</option>
+          </select>
+        </div>
+        <div class="set-row"><span>聊天背景</span>
+          <button class="btn-code" id="btnSetBgColor">🎨 纯色</button>
+          <button class="btn-code" id="btnSetBgGrad">🌈 渐变</button>
+          <button class="btn-code" id="btnSetBg">🖼 图片</button>
+          <button class="btn-code" id="btnSetBgReset">↺ 恢复默认</button>
+        </div>
+        <div class="bg-panel" id="bgPanel" hidden></div>
+        <div class="set-row" id="bgOpacityRow" hidden>
+          <div class="set-label" style="flex:none">背景浓度</div>
+          <input type="range" id="bgOpacity" min="15" max="100" value="100" style="flex:1">
+          <span id="bgOpacityVal" style="flex:none;font-size:12px;color:var(--text-2)">100%</span>
+        </div>
+        <div class="set-row" hidden>
+          <div class="set-label" style="flex:none">占位</div>
+        </div>
+        <div class="set-row"><span>消息提示音</span>
+          <label class="check-row" style="margin:0"><input type="checkbox" id="setSound"><span>开启</span></label>
+          <select id="setSoundStyle" style="height:34px;">
+            <option value="ding">叮咚</option>
+            <option value="chime">清脆</option>
+            <option value="drop">水滴</option>
+            <option value="pop">气泡</option>
+            <option value="coin">金币</option>
+            <option value="soft">轻提示</option>
+          </select>
+          <button class="btn-code" id="btnSoundTest">试听</button>
+        </div>
+        <div class="set-row"><span>提示音音量</span>
+          <input id="setSoundVol" type="range" min="0" max="100" step="5" style="flex:1;height:34px;">
+          <span class="vol-val" id="setSoundVolVal">70%</span>
+          <button class="btn-code" id="btnSoundTest2">试听</button>
+        </div>
+        <div class="set-row"><span>聊天字号</span>
+          <select id="setFontSize" style="flex:1;height:34px;">
+            <option value="small">小</option>
+            <option value="normal">标准</option>
+            <option value="large">大</option>
+            <option value="huge">特大</option>
+          </select>
+        </div>
+        <div class="set-row"><span>发送方式</span>
+          <select id="setEnterMode" style="flex:1;height:34px;">
+            <option value="enter">Enter 发送，Shift+Enter 换行</option>
+            <option value="ctrl">Ctrl+Enter 发送，Enter 换行</option>
+          </select>
+        </div>
+        <div class="set-row"><span>会话列表</span>
+          <label class="check-row" style="margin:0"><input type="checkbox" id="setPreview"><span>显示最后一条消息预览</span></label>
+        </div>
+        <div class="set-row"><span>消息翻译</span>
+          <select id="setTrans" style="flex:1;height:34px;">
+            <option value="auto">自动（中译英 / 英译中）</option>
+            <option value="en">一律翻译成英语</option>
+            <option value="zh">一律翻译成中文</option>
+          </select>
+        </div>
+        <div class="set-row"><span>Chat 条约</span>
+          <button class="btn-code" id="btnSetAgreement">查看</button>
+        </div>
+        <div class="set-row"><span>管理员承诺书</span>
+          <button class="btn-code" id="btnSetPledge">查看</button>
+        </div>
+        <div class="set-row"><span>界面语言</span>
+          <select id="setLang" style="flex:1;height:34px;">
+            <option value="zh-CN">中国简体</option>
+            <option value="zh-TW">中国繁体</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ru">Русский</option>
+            <option value="ko">한국어</option>
+            <option value="th">ไทย</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+        <div class="set-row"><span>意见箱</span>
+          <button class="btn-code" id="btnOpenFeedback">打开意见箱</button>
+        </div>
+        <div class="set-row"><span>新手指引</span>
+          <button class="btn-code" id="btnReplayGuide">重新指引</button>
+        </div>
+        <div class="set-row"><span>注销账号</span>
+          <button class="btn-code danger" id="btnCloseAccount">注销账号</button>
+          <span class="muted" style="font-size:12px">永久删除账号与好友关系，且不占用注册名额</span>
+        </div>
+        <div class="set-row"><span>检查更新</span>
+          <button class="btn-code" id="btnCheckUpdate">🔄 检查更新</button>
+          <span class="muted" style="font-size:12px">检测手机版 App 是否有新版本</span>
+        </div>
+        <div class="set-row" id="rowApkDl"><span>手机版 App</span>
+          <a class="btn-code" href="/kbchat.apk?v=1.3.7" download="KBChat.apk">📱 下载安卓安装包（APK）</a>
+          <span class="muted" style="font-size:12px">装一次永久新版：App 打开就是最新线上内容</span>
+        </div>
+        <div class="set-row"><span>关于</span>
+          <span class="muted" style="font-size:12.5px">靠北 Chat · KB Chat<br>本项目由个人开发者「靠北科技」运营（非商业团队） · 2026</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游戏中心：靠北游戏（内置）+ 第三方游戏 -->
+    <div class="pane pane-full" id="moreView" hidden>
+      <header class="full-head">
+        <div class="full-title">🎮 游戏中心</div>
+        <button class="add-btn" id="btnMoreFloat2" title="更多功能">⋯</button>
+      </header>
+      <div class="full-body" id="moreBody">
+        <!-- 天气（复用朋友圈的天气卡片） -->
+        <div class="gc-section-title">🌤️ 天气 <span class="muted" style="font-size:11px">Open-Meteo · 3 天预报</span></div>
+        <div class="weather-card" id="weatherCardMore" hidden></div>
+        <!-- 靠北游戏：内置（代码写进程序，陆续上线） -->
+        <div id="kbGamesSection">
+          <div class="gc-section-title">🎮 靠北游戏 <span class="muted" style="font-size:11px">内置 · 免跳转</span></div>
+          <div class="games-grid" id="kbGamesGrid">
+            <div class="game-card" id="gameJump" style="cursor:pointer">
+              <div class="gc-cover"><span class="gc-letter" style="background:linear-gradient(160deg,#101735,#2b6bd9);color:#9fd8ff">跳</span></div>
+              <div class="gc-name">跳一跳</div>
+              <div class="muted" style="font-size:11px;padding:0 10px 10px">2.5D 无限模式 · 高分涨等级 · 有排行榜</div>
+            </div>
+            <div class="game-card" id="gameSolitaire" style="cursor:pointer">
+              <div class="gc-cover"><span class="gc-letter" style="background:linear-gradient(160deg,#101735,#8f5bd9);color:#e3d1ff">接</span></div>
+              <div class="gc-name">靠北接龙</div>
+              <div class="muted" style="font-size:11px;padding:0 10px 10px">成语接龙 · 可与小靠AI 对战 · 有排行榜</div>
+            </div>
+            <div class="game-card" id="gameMatch3" style="cursor:pointer">
+              <div class="gc-cover"><span class="gc-letter" style="background:linear-gradient(160deg,#2a1050,#b06bd9);color:#ffd6ff">消</span></div>
+              <div class="gc-name">靠北消消乐</div>
+              <div class="muted" style="font-size:11px;padding:0 10px 10px">经典三消 · 30 步挑战 · 有排行榜</div>
+            </div>
+          </div>
+        </div>
+        <!-- 第三方游戏（CMO 管理） -->
+        <div id="gamesSection">
+          <div class="full-tabs">
+            <span class="gc-section-title">🌐 第三方游戏 <span class="muted" style="font-size:11px">点击卡片跳转</span></span>
+            <button type="button" class="btn-code" id="btnGameAdd" hidden>＋ 添加游戏</button>
+          </div>
+          <div class="games-grid" id="gamesGrid"><p class="muted">加载中…</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 管理面板视图 -->
+    <div class="pane pane-full" id="adminView" hidden>
+      <header class="full-head">
+        <div class="full-title">🛡️ 管理面板</div>
+        <div class="full-ops">
+          <button class="btn-code" id="btnAdminRegister" title="帮用户开一个新账号，不受同一网络 2 个账号的限制">注册用户</button>
+          <button class="btn-code" id="btnAdminRepair" title="清理自己加自己、指向已删账号的脏好友，并补齐每位用户与 CMO 的双向好友">修复好友关系</button>
+          <button class="btn-code" id="btnAdminRefresh">刷新</button>
+        </div>
+      </header>
+      <div class="admin-tabs" id="adminTabs">
+        <button type="button" class="atab is-on" data-v="users">账号管理</button>
+        <button type="button" class="atab" data-v="dms">单聊管理</button>
+        <button type="button" class="atab" data-v="groups">群聊管理</button>
+        <button type="button" class="atab" data-v="rooms">消息审查</button>
+        <button type="button" class="atab" data-v="ann">Chat公告</button>
+        <button type="button" class="atab" data-v="feedback">意见箱</button>
+        <button type="button" class="atab" data-v="bans">封号管理</button>
+        <button type="button" class="atab" data-v="admins">管理员管理</button>
+        <button type="button" class="atab" data-v="fbreq">反馈箱</button>
+        <button type="button" class="atab" data-v="moments">朋友圈管理</button>
+        <button type="button" class="atab" data-v="words">违禁词</button>
+        <button type="button" class="atab" data-v="msgs">聊天记录</button>
+        <button type="button" class="atab" data-v="freqs">好友申请</button>
+        <button type="button" class="atab" data-v="deleted">账号删除</button>
+        <button type="button" class="atab" data-v="data">数据备份</button>
+        <button type="button" class="atab" data-v="storage">存储管理</button>
+        <button type="button" class="atab" data-v="ipmgr">IP管理</button>
+        <button type="button" class="atab" data-v="aihelp">AI帮手</button>
+      </div>
+      <div class="admin-toolbar">
+        <input id="adminSearch" placeholder="搜索KB号 / 昵称 / 会话" autocomplete="off" name="kb-admin-search" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="admin-list" id="adminList"><p class="muted">加载中…</p></div>
+      <div class="admin-chat" id="adminChat" hidden></div>
+    </div>
+  </section>
+</div>
+
+<!-- 表情面板 -->
+<div class="emoji-pop" id="emojiPop" hidden>
+  <div class="emoji-tabs" id="emojiTabs"></div>
+  <div class="emoji-grid" id="emojiGrid"></div>
+</div>
+
+<!-- 弹窗容器 -->
+<div class="modal-mask" id="modalMask" hidden>
+  <!-- 资料设置 -->
+  <div class="modal" id="modalProfile" hidden>
+    <h3 id="profileTitle">完善资料</h3>
+    <p class="modal-sub">设置昵称与头像，好友将看到这些信息</p>
+      <div class="avatar-pick">
+        <div class="avatar-preview" id="avatarPreview">😊</div>
+        <div class="avatar-list" id="avatarList"></div>
+      </div>
+      <div class="avatar-album">
+        <button type="button" class="btn-code" id="btnAvatarAlbum">🖼️ 从图库选择</button>
+        <span class="album-tip" id="avatarAlbumTip">支持相册里的任意图片，也可选上方表情</span>
+      </div>
+      <input type="file" id="avatarPicker" accept="image/*" hidden>
+    <div class="field">
+      <label>昵称</label>
+      <input id="nickInput" maxlength="16" placeholder="请输入昵称">
+    </div>
+    <div class="field">
+      <label>性别</label>
+      <div class="seg gender-seg" id="profGender">
+        <button type="button" data-g="male">👦 男生</button>
+        <button type="button" data-g="female">👧 女生</button>
+        <button type="button" data-g="secret">🔒 隐私</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>KB号（不可更改）</label>
+      <input id="wxidInput" maxlength="20" placeholder="用于好友搜索" disabled>
+      <p class="field-tip">KB号是账号唯一凭证，注册后无法修改</p>
+      <p class="field-err" id="wxidErr"></p>
+    </div>
+    <div class="field">
+      <label>个性签名</label>
+      <input id="signInput" maxlength="40" placeholder="选填">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <div class="pwd-fixed">
+        <input id="pwdInput" type="text" value="已加密保存（任何人不可查看）" readonly disabled>
+        <button type="button" class="btn-code" id="btnChangePwd">修改密码</button>
+      </div>
+      <p class="field-tip" id="pwdTip">密码以加密方式存储，任何人（含 CMO）都无法查看；如需更换请点「修改密码」</p>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-code" id="btnMyQr">我的二维码</button>
+      <button class="btn-code" id="btnProfileAgreement">Chat 条约</button>
+      <button class="btn-code" id="btnProfileSecQuiz">密保问答</button>
+    </div>
+    <div class="modal-btns">
+      <a class="btn-code apk-entry" href="/kbchat.apk?v=1.3.7" download="KBChat.apk" title="Android 手机安装包">📱 安卓手机版 · 安装包下载（APK）</a>
+    </div>
+    <div class="modal-btns modal-btns-bottom">
+      <button class="btn-ghost" id="btnLogout2">退出登录</button>
+      <button class="btn-primary" id="btnSaveProfile">保存并进入</button>
+    </div>
+    <p class="modal-danger-link"><a href="javascript:;" id="btnCloseAccount2">注销账号</a></p>
+  </div>
+
+  <!-- 修改密码 -->
+  <div class="modal" id="modalPwd" hidden>
+    <h3>修改密码</h3>
+    <p class="modal-sub">先验证原密码，新密码需输入两次</p>
+    <div class="field">
+      <label>原密码</label>
+      <input id="pwdOld" type="password" maxlength="30" placeholder="请输入当前正在使用的密码" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>新密码</label>
+      <input id="pwdNew" type="password" maxlength="30" placeholder="至少 8 位" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>确认新密码</label>
+      <input id="pwdNew2" type="password" maxlength="30" placeholder="请再输入一次新密码" autocomplete="off">
+    </div>
+    <p class="field-err" id="pwdErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnPwdCancel">取消</button>
+      <button class="btn-primary" id="btnPwdSubmit">确认修改</button>
+    </div>
+  </div>
+
+  <!-- 账号详情 -->
+  <div class="modal" id="modalUser" hidden>
+    <h3>账号详情</h3>
+    <p class="modal-sub">点击账号后可查看全部注册信息</p>
+    <div class="udetail" id="userDetail"><p class="muted">加载中…</p></div>
+    <div class="field">
+      <label>更正注册归属地（按出口 IP 推断，走代理/VPN 时可能偏差，可手动改）</label>
+      <div class="pwd-fixed">
+        <input id="udLoc" maxlength="60" placeholder="例如：中国 广东 广州市 增城区">
+        <button type="button" class="btn-code" id="btnUdLocSave">保存归属地</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>修改昵称（改完全网立刻同步，对方会收到通知）</label>
+      <div class="pwd-fixed">
+        <input id="udNewNick" maxlength="16" placeholder="输入新的昵称">
+        <button type="button" class="btn-code" id="btnUdRename">修改昵称</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>重置为简单密码（用户忘记密码时使用）</label>
+      <div class="pwd-fixed">
+        <input id="udNewPwd" maxlength="30" placeholder="例如：1234">
+        <button type="button" class="btn-code" id="btnUdResetPwd">重置密码</button>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost danger" id="btnUdDelete">删除用户</button>
+      <button class="btn-ghost warn" id="btnUdBan">封禁用户</button>
+      <button class="btn-primary" id="btnUdClose">关闭</button>
+    </div>
+  </div>
+
+  <!-- 删除确认 -->
+  <div class="modal" id="modalDel" hidden>
+    <h3>是否确认删除？</h3>
+    <p class="modal-sub" id="delWho"></p>
+    <div class="field">
+      <label>删除理由（将写入用户删除公告）</label>
+      <input id="delReason" maxlength="100" placeholder="请填写删除理由">
+    </div>
+    <label class="check-row">
+      <input type="checkbox" id="delWipe">
+      <span>清空此用户聊天数据（其发出的全部消息与相关单聊记录）</span>
+    </label>
+    <p class="field-err" id="delErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnDelCancel">取消</button>
+      <button class="btn-primary danger" id="btnDelOk">确认删除</button>
+    </div>
+  </div>
+
+  <!-- 封禁确认 -->
+  <div class="modal" id="modalBan" hidden>
+    <h3>是否确认封禁？</h3>
+    <p class="modal-sub" id="banWho"></p>
+    <div class="field">
+      <label>封禁方式</label>
+      <div class="seg" id="banMode">
+        <button type="button" class="is-on" data-m="hours">按时间</button>
+        <button type="button" data-m="date">按日期</button>
+      </div>
+    </div>
+    <div class="field" id="banHoursBox">
+      <label>封禁时长（小时）</label>
+      <input id="banHours" type="number" min="1" value="24">
+    </div>
+    <div class="field" id="banDateBox" hidden>
+      <label>解封日期（到该日期时间解封）</label>
+      <input id="banDate" type="datetime-local">
+    </div>
+    <div class="field">
+      <label>封禁理由</label>
+      <input id="banReason" maxlength="100" placeholder="请填写封禁理由">
+    </div>
+    <p class="field-err" id="banErr"></p>
+    <p class="field-tip">封禁后用户仍可登录查看消息，但无法发言；其所有会话将收到封禁公告。</p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnBanCancel">取消</button>
+      <button class="btn-primary danger" id="btnBanOk">确认封禁</button>
+    </div>
+  </div>
+
+  <!-- 登录页：用户删除名单 -->
+  <div class="modal" id="modalDelList" hidden>
+    <h3>用户删除名单</h3>
+    <p class="modal-sub">以下用户已被管理员依法依规删除，引以为戒</p>
+    <div class="del-table" id="delTable"><p class="muted">加载中…</p></div>
+    <div class="modal-btns">
+      <button class="btn-primary" id="btnDelListClose">关闭</button>
+    </div>
+  </div>
+
+  <!-- 登录页：产品信息 -->
+  <div class="modal" id="modalProduct" hidden>
+    <h3>产品信息</h3>
+    <div class="pi-head">
+      <img class="pi-logo" src="/assets/kb-logo.png" alt="靠北Chat">
+      <div class="pi-title">
+        <b>靠北Chat</b>
+        <span>KB Chat · 免费即时通讯应用</span>
+        <em>kaobei-chat.pages.dev</em>
+      </div>
+    </div>
+    <div class="pi-grid">
+      <p class="pi-row"><span>当前版本</span><b>v1.2.0</b></p>
+      <p class="pi-row"><span>开发团队</span><b>靠北科技</b></p>
+      <p class="pi-row"><span>运营性质</span><b>个人开发者 · 非商业</b></p>
+      <p class="pi-row"><span>收费标准</span><b>免费使用</b></p>
+    </div>
+    <div class="pi-desc">
+      <b>功能一览</b>
+      <p>好友聊天 · 群聊 · 朋友圈 · AI 助手 · 语音消息 · 图片 / 文件传输 · 扫一扫加好友 · 内容安全审查 · 数据加密存储</p>
+    </div>
+    <div class="pi-download">
+      <p class="pi-dl-title">下载「靠北Chat」客户端</p>
+      <div class="pi-dl-grid">
+        <a class="pi-dl-card is-ok" href="/kbchat.apk?v=1.3.7" download="KBChat.apk">
+          <svg viewBox="0 0 24 24" class="pi-dl-ico pi-ico-android" aria-hidden="true"><path fill="currentColor" d="M6,18c0,0.55 0.45,1 1,1h1v3.5c0,0.83 0.67,1.5 1.5,1.5s1.5,-0.67 1.5,-1.5L11,19h2v3.5c0,0.83 0.67,1.5 1.5,1.5s1.5,-0.67 1.5,-1.5L16,19h1c0.55,0 1,-0.45 1,-1L18,8L6,8L6,18zM3.5,8C2.67,8 2,8.67 2,9.5v7c0,0.83 0.67,1.5 1.5,1.5S5,17.33 5,16.5v-7C5,8.67 4.33,8 3.5,8zM20.5,8c-0.83,0 -1.5,0.67 -1.5,1.5v7c0,0.83 0.67,1.5 1.5,1.5s1.5,-0.67 1.5,-1.5v-7c0,-0.83 -0.67,-1.5 -1.5,-1.5zM15.53,2.16l1.3,-1.3c0.2,-0.2 0.2,-0.51 0,-0.71s-0.51,-0.2 -0.71,0l-1.48,1.48C13.85,1.23 12.95,1 12,1s-1.85,0.23 -2.63,0.62L7.88,0.15c-0.2,-0.2 -0.51,-0.2 -0.71,0s-0.2,0.51 0,0.71l1.3,1.3C7.18,3.17 6,5.03 6,7h12c0,-1.97 -1.18,-3.83 -2.47,-4.84zM9,5L9,4h1v1L9,5zM14,5h-1L13,4h1v1z"/></svg>
+          <b>Android 安卓版</b>
+          <span>v1.3.7 · APK 安装包</span>
+          <i class="pi-dl-btn">立即下载</i>
+        </a>
+        <div class="pi-dl-card is-soon">
+          <svg viewBox="0 0 24 24" class="pi-dl-ico" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
+          <b>iOS 版</b>
+          <span>审核中 · 即将上线</span>
+          <i class="pi-dl-btn pi-dl-dis">敬请期待</i>
+        </div>
+        <div class="pi-dl-card is-soon">
+          <svg viewBox="0 0 24 24" class="pi-dl-ico" aria-hidden="true"><path fill="currentColor" d="M0 3.449L9.75 2.1v9.451H0m10.971-9.605L24 0v11.4H10.971M0 12.6h9.75v9.451L0 20.699M10.971 12.51H24V24l-12.9-1.818"/></svg>
+          <b>Windows 版</b>
+          <span>开发中 · 即将上线</span>
+          <i class="pi-dl-btn pi-dl-dis">敬请期待</i>
+        </div>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnProductDl">下载安卓版</button>
+      <button class="btn-primary" id="btnProductClose">关闭</button>
+    </div>
+  </div>
+
+  <!-- 用户协议（注册后自动弹出） -->
+  <div class="modal" id="modalAgreement" hidden>
+    <h3>KB 靠北Chat 用户协议</h3>
+    <p class="modal-sub">请仔细阅读以下协议，同意后方可使用本服务</p>
+    <div class="agreement-body" id="agreementBody"></div>
+    <label class="check-row">
+      <input type="checkbox" id="agreeCheck">
+      <span>我已阅读并同意《KB 靠北Chat 用户协议》</span>
+    </label>
+    <p class="field-err" id="agreeErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnAgreeNo">不同意</button>
+      <button class="btn-primary" id="btnAgreeYes">同意并继续</button>
+    </div>
+  </div>
+
+  <!-- CMO 代注册用户 -->
+  <div class="modal" id="modalAdminReg" hidden>
+    <h3>注册用户</h3>
+    <p class="modal-sub">由 CMO 代用户开户，不受「同一网络 2 个账号」限制。只帮注册，不会替你登录。</p>
+    <div id="adminRegForm">
+      <div class="field">
+        <label>KB号</label>
+        <input id="arWxid" maxlength="20" placeholder="字母 / 数字 / 下划线，3-20 位">
+      </div>
+      <div class="field">
+        <label>昵称</label>
+        <input id="arNick" maxlength="16" placeholder="好友看到的名字">
+      </div>
+      <div class="field">
+        <label>真实姓名</label>
+        <input id="arRealName" maxlength="20" placeholder="用于忘记密码时验证身份">
+      </div>
+      <div class="field">
+        <label>登录密码</label>
+        <input id="arPwd" maxlength="30" placeholder="至少 8 位">
+      </div>
+      <div class="field">
+        <label>头像</label>
+        <input id="arAvatar" maxlength="4" value="😊" placeholder="一个表情即可">
+      </div>
+      <p class="field-err" id="arErr"></p>
+      <div class="modal-btns">
+        <button class="btn-ghost" id="btnArCancel">取消</button>
+        <button class="btn-primary" id="btnArOk">创建账号</button>
+      </div>
+    </div>
+    <div id="adminRegDone" hidden>
+      <p class="field-tip">账号已创建。把下面的信息交给用户，让他自己登录（首次登录会有新手指引）。</p>
+      <div class="reg-done" id="arDoneBox"></div>
+      <div class="modal-btns">
+        <button class="btn-code" id="btnArCopy">复制账号信息</button>
+        <button class="btn-code" id="btnArAgain">再建一个</button>
+        <button class="btn-primary" id="btnArClose">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 发出泡泡：勾选爱好 + 附上位置 -->
+  <div class="modal" id="modalBubbleForm" hidden>
+    <h3>🫧 发出泡泡</h3>
+    <p class="modal-sub">勾选你的爱好（可多选，最多 6 个），发出去变成泡泡慢慢飞。</p>
+    <div class="bubble-form-scroll">
+      <div class="hobby-groups" id="hobbyPicker"></div>
+    </div>
+    <div class="field" style="margin:8px 0 0">
+      <div style="display:flex;gap:8px">
+        <input id="hobbyCustom" maxlength="8" placeholder="✏️ 自定义爱好（2-8 个字）" style="flex:1;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <button type="button" class="btn-code" id="btnHobbyCustom">添加</button>
+      </div>
+      <p class="field-tip" id="hobbyCustomTip">自定义内容会先经 AI 审查，通过后才能添加</p>
+    </div>
+    <div class="hobby-bar">
+      <span class="hobby-count" id="hobbyCount">已选 0 / 6</span>
+      <span class="hobby-loc" id="hobbyLoc"></span>
+      <button type="button" class="btn-code" id="btnBubbleLoc">📍 附上位置</button>
+    </div>
+    <p class="field-err" id="bubbleErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnBubbleCancel">取消</button>
+      <button class="btn-primary" id="btnBubbleConfirm">发出泡泡</button>
+    </div>
+  </div>
+
+  <!-- CMO 添加游戏 -->
+  <div class="modal" id="modalGameAdd" hidden>
+    <h3>添加游戏</h3>
+    <p class="modal-sub">添加后会出现在「更多 → 游戏」里，可再置顶。</p>
+    <div class="field">
+      <label>游戏名称</label>
+      <input id="gameName" maxlength="30" placeholder="例如：贪吃蛇大作战">
+    </div>
+    <div class="field">
+      <label>游戏链接（点击卡片后跳转到这里）</label>
+      <input id="gameUrl" maxlength="300" placeholder="https://…">
+    </div>
+    <div class="field">
+      <label>封面图片（必填，填写图片地址）</label>
+      <input id="gameImg" maxlength="500" placeholder="https://…/cover.png">
+    </div>
+    <p class="field-err" id="gameErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnGameCancel">取消</button>
+      <button class="btn-primary" id="btnGameOk">添加</button>
+    </div>
+  </div>
+
+  <!-- 登录页：我有疑问（游客向 CMO 提问） -->
+  <div class="modal" id="modalGuestAsk" hidden>
+    <h3>我有疑问</h3>
+    <p class="modal-sub">
+      <span id="gaStatus" class="ga-status">正在查询 CMO 在线状态…</span>
+    </p>
+    <div class="ga-chat" id="gaChat"><p class="muted">有什么想问的，直接写下来发给 CMO 吧。</p></div>
+    <div class="field">
+      <input id="gaName" maxlength="20" placeholder="怎么称呼你（选填）">
+    </div>
+    <div class="ga-input">
+      <input id="gaText" maxlength="500" placeholder="写下你的疑问…">
+      <button class="btn-primary" id="btnGaSend">发送</button>
+    </div>
+    <p class="field-err" id="gaErr"></p>
+    <p class="field-tip">关闭这个窗口后，本次对话会从服务器清除。</p>
+    <div class="modal-btns">
+      <button class="btn-primary" id="btnGaClose">关闭并清除</button>
+    </div>
+  </div>
+
+  <!-- 注销账号 -->
+  <div class="modal" id="modalCloseAccount" hidden>
+    <h3>注销账号</h3>
+    <p class="modal-sub">注销后账号会被永久删除：好友关系一并解除、相关记录移除，且无法恢复。注销的账号<b>不占用注册名额</b>。</p>
+    <div class="field">
+      <label>真实姓名</label>
+      <input id="caName" maxlength="20" placeholder="注册时填写的真实姓名">
+    </div>
+    <div class="field">
+      <label>登录密码</label>
+      <input id="caPwd" type="password" maxlength="30" placeholder="当前账号的密码" autocomplete="off">
+    </div>
+    <label class="check-row">
+      <input type="checkbox" id="caConfirm">
+      <span>我已知晓，注销后无法恢复</span>
+    </label>
+    <p class="field-err" id="caErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnCaCancel">取消</button>
+      <button class="btn-primary danger" id="btnCaOk">确认注销</button>
+    </div>
+  </div>
+
+  <!-- 转发到 -->
+  <div class="modal" id="modalForward" hidden>
+    <h3>转发到</h3>
+    <p class="modal-sub" id="fwdSub"></p>
+    <div class="fwd-list" id="fwdList"><p class="muted">加载中…</p></div>
+    <div class="modal-btns"><button class="btn-ghost" id="btnFwdCancel">取消</button></div>
+  </div>
+
+  <!-- 举报 -->
+  <div class="modal" id="modalReport" hidden>
+    <h3>举报消息</h3>
+    <p class="modal-sub" id="repSub"></p>
+    <div class="field"><label>举报理由</label>
+      <select id="repReason" style="width:100%;height:36px;">
+        <option>不良信息</option><option>辱骂人身攻击</option><option>垃圾广告骚扰</option>
+        <option>违法违规内容</option><option>侵犯他人权益</option><option>其他</option>
+      </select>
+    </div>
+    <p class="field-err" id="repErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnRepCancel">取消</button>
+      <button class="btn-primary" id="btnRepOk">提交举报</button>
+    </div>
+  </div>
+
+  <!-- 设置 / 意见箱 / 抽奖 / 找朋友 / 管理面板 已改为独占主区域的大视图 -->
+
+  <!-- 发布公告 -->
+  <div class="modal" id="modalAnnForm" hidden>
+    <h3>发布公告</h3>
+    <p class="modal-sub" id="annFormWho"></p>
+    <div class="field">
+      <label>公告类型</label>
+      <div class="seg ann-seg" id="annType">
+        <button type="button" class="is-on" data-t="group">群公告</button>
+        <button type="button" data-t="direct">指定公告</button>
+        <button type="button" data-t="normal">普通 Chat 公告</button>
+        <button type="button" data-t="important">重要 Chat 公告</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>主题</label>
+      <input id="annTitle" maxlength="60" placeholder="请输入公告主题">
+    </div>
+    <div class="field">
+      <label>正文</label>
+      <textarea id="annBody" rows="4" maxlength="2000" placeholder="请输入公告正文"></textarea>
+    </div>
+    <div class="field" id="annAudienceBox" hidden>
+      <label>可见范围（重要公告）</label>
+      <div class="seg ann-seg" id="annAudience">
+        <button type="button" class="is-on" data-a="login">仅登录用户</button>
+        <button type="button" data-a="registered">仅注册用户</button>
+        <button type="button" data-a="all">所有人</button>
+      </div>
+      <p class="muted" style="font-size:11.5px;margin-top:4px" id="annAudienceTip">登录用户在线立即弹出，离线的登录时补弹；每条需浏览 5 秒确认</p>
+    </div>
+    <div class="field" id="annTargetBox">
+      <label id="annTargetLabel">选择群（可多选）</label>
+      <div class="ann-targets" id="annTargets"><p class="muted">加载中…</p></div>
+    </div>
+    <p class="field-tip">落款固定为您的昵称与发布（或审批通过）时间，无需填写。</p>
+    <p class="field-err" id="annErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnAnnFormCancel">取消</button>
+      <button class="btn-primary" id="btnAnnFormOk">提交</button>
+    </div>
+  </div>
+
+  <!-- 断绝关系 -->
+  <div class="modal" id="modalSever" hidden>
+    <h3>是否断绝关系？</h3>
+    <p class="modal-sub" id="sevWho"></p>
+    <label class="check-row">
+      <input type="checkbox" id="sevWipe">
+      <span>是否删除聊天记录（断绝后双方无法重新加回）</span>
+    </label>
+    <p class="field-err" id="sevErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnSevCancel">取消</button>
+      <button class="btn-primary danger" id="btnSevOk">确认断绝</button>
+    </div>
+  </div>
+
+  <!-- 用户删除公告（证书） -->
+  <div class="modal modal-cert" id="modalCert" hidden>
+    <div class="cert" id="certBody"></div>
+    <div class="modal-btns">
+      <button class="btn-primary" id="btnCertClose">我已知晓</button>
+    </div>
+  </div>
+
+  <!-- 添加好友 -->
+  <div class="modal" id="modalAdd" hidden>
+    <h3>用户中心</h3>
+    <p class="modal-sub">KB号是唯一的身份标识，不可重复；昵称可以相同</p>
+    <div class="add-hub">
+      <button class="btn-code" id="btnHubReqs">🙋 用户申请</button>
+    </div>
+    <div class="field">
+      <label>申请添加用户（按KB号查找）</label>
+      <div class="code-row">
+        <input id="searchUid" placeholder="输入对方的KB号">
+        <button class="btn-code" id="btnDoSearch">搜索</button>
+        <button class="btn-code" id="btnScanQr" title="扫一扫">📷</button>
+        <button class="btn-code" id="btnGalleryQr" title="从相册识别二维码">🖼</button>
+      </div>
+    </div>
+    <div class="search-result" id="searchResult"><p class="muted">输入KB号后点击搜索</p></div>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnCloseAdd">关闭</button>
+    </div>
+  </div>
+
+  <!-- 发送定位 -->
+  <div class="modal" id="modalLocation" hidden>
+    <h3>发送位置</h3>
+    <p class="modal-sub" id="locInfo">正在获取定位…</p>
+    <div class="field">
+      <label>地点名称（选填）</label>
+      <input id="locName" maxlength="40" placeholder="例如：公司楼下、西湖边">
+    </div>
+    <div class="field">
+      <label>详细地址（选填）</label>
+      <input id="locAddr" maxlength="80" placeholder="例如：XX 路 XX 号">
+    </div>
+    <p class="field-err" id="locErr"></p>
+    <div id="locMapWrap" hidden>
+      <div id="locPickMap" style="height:260px;border-radius:10px;overflow:hidden;margin-bottom:8px"></div>
+    </div>
+    <p class="field-tip">定位只在你点「发送」后才会上传，并且只会发到当前这个会话里。</p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnLocCancel">取消</button>
+      <button class="btn-code" id="btnLocRetry">重新定位</button>
+      <button class="btn-code" id="btnLocMap">📍 地图选点</button>
+      <button class="btn-code" id="btnLocPrivacy">隐私说明</button>
+      <button class="btn-primary" id="btnLocSend" disabled>发送</button>
+    </div>
+  </div>
+
+  <!-- 查看定位 / 地图概览（腾讯地图） -->
+  <div class="modal modal-wide" id="modalMap" hidden>
+    <h3 id="mapTitle">位置</h3>
+    <p class="modal-sub" id="mapSub"></p>
+    <div class="full-tabs" id="mapTabs">
+      <button type="button" class="atab is-on" data-mt="point">位置</button>
+      <button type="button" class="atab" data-mt="china">全国概览</button>
+      <button type="button" class="atab" data-mt="world">全球概览</button>
+    </div>
+    <div class="map-canvas" id="mapCanvas"></div>
+    <p class="field-tip" id="mapTip"></p>
+    <div class="modal-btns">
+      <button class="btn-code" id="btnMapNav">导航到这里</button>
+      <button class="btn-primary" id="btnMapClose">关闭</button>
+    </div>
+  </div>
+
+  <!-- 用户反馈（星级） -->
+  <div class="modal" id="modalFbReq" hidden>
+    <h3>用户反馈</h3>
+    <p class="modal-sub" id="fbqSub"></p>
+    <div class="fb-stars" id="fbqStars"></div>
+    <div class="fb-hint muted" id="fbqHint">请点击星星评分</div>
+    <div class="field"><textarea id="fbqText" rows="3" maxlength="500" placeholder="想说的话（选填）"></textarea></div>
+    <p class="field-err" id="fbqErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnFbqLater">稍后再说</button>
+      <button class="btn-primary" id="btnFbqOk">提交反馈</button>
+    </div>
+  </div>
+
+  <!-- CMO 新建反馈 -->
+  <div class="modal" id="modalFbNew" hidden>
+    <h3>新建反馈</h3>
+    <p class="modal-sub">填写你想让用户反馈的内容，发送后在线用户立即收到</p>
+    <div class="field"><label>反馈主题</label><input id="fbnTitle" maxlength="60" placeholder="如：新版公告栏好用吗"></div>
+    <div class="field"><label>说明（选填）</label><textarea id="fbnDesc" rows="3" maxlength="500" placeholder="补充说明"></textarea></div>
+    <p class="field-err" id="fbnErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnFbnCancel">取消</button>
+      <button class="btn-primary" id="btnFbnOk">发送</button>
+    </div>
+  </div>
+
+  <!-- 管理员管理：邀请 -->
+  <div class="modal" id="modalAdminInvite" hidden>
+    <h3>邀请管理员</h3>
+    <p class="modal-sub">按KB号邀请成员加入管理员团队，并勾选其权限</p>
+    <div class="field"><label>对方KB号（点输入框可直接选人）</label><input id="aiWxid" placeholder="输入或选择对方的KB号" list="aiWxidList" autocomplete="off"><datalist id="aiWxidList"></datalist></div>
+    <div class="field"><label>权限</label>
+      <div class="perm-box" id="aiPerms"></div>
+    </div>
+    <p class="field-err" id="aiErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnAiCancel">取消</button>
+      <button class="btn-primary" id="btnAiOk">发出邀请</button>
+    </div>
+  </div>
+
+  <!-- CMO 发布限时抽奖 -->
+  <div class="modal" id="modalLuckyAdmin" hidden>
+    <h3>发布限时抽奖</h3>
+    <div class="field"><label>活动名称</label><input id="laTitle" maxlength="40" placeholder="如：国庆大抽奖"></div>
+    <div class="field"><label>奖品</label><input id="laPrize" maxlength="60" placeholder="如：会员一个月"></div>
+    <div class="field"><label>中奖概率（%）</label><input id="laRate" type="number" min="1" max="100" value="30"></div>
+    <div class="field"><label>持续小时</label><input id="laHours" type="number" min="1" value="24"></div>
+    <p class="field-err" id="laErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnLaCancel">取消</button>
+      <button class="btn-primary" id="btnLaOk">发布</button>
+    </div>
+  </div>
+
+  <!-- 好友申请 -->
+  <div class="modal" id="modalReqs" hidden>
+    <h3>新的朋友</h3>
+    <p class="modal-sub">以下用户申请添加你为好友，同意后即可互相聊天</p>
+    <div class="req-list" id="reqList"><p class="muted">加载中…</p></div>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnCloseReqs">关闭</button>
+    </div>
+  </div>
+
+  <!-- 创建群聊 -->
+  <div class="modal" id="modalGroup" hidden>
+    <h3>发起群聊</h3>
+    <p class="modal-sub">勾选好友，创建后可一起聊天</p>
+    <div class="field">
+      <label>群名称</label>
+      <input id="groupName" maxlength="20" placeholder="例如：周末聚餐">
+    </div>
+    <div class="pick-list" id="pickList"></div>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnCloseGroup">取消</button>
+      <button class="btn-primary" id="btnDoCreateGroup">创建群聊</button>
+    </div>
+  </div>
+
+  <!-- 资料卡 -->
+  <div class="modal" id="modalCard" hidden>
+    <div class="card-head">
+      <div class="card-avatar" id="cardAvatar">😊</div>
+      <div>
+        <div class="card-name" id="cardName"></div>
+        <div class="card-wxid" id="cardWxid"></div>
+      </div>
+    </div>
+    <p class="card-sign" id="cardSign"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnCloseCard">关闭</button>
+      <button class="btn-primary" id="btnCardSend">发消息</button>
+    </div>
+  </div>
+
+  <!-- 发布 / 编辑朋友圈动态 -->
+  <div class="modal modal-wide" id="modalMomentForm" hidden>
+    <h3 id="momentFormTitle">发布动态</h3>
+    <p class="modal-sub">支持照片、视频、语音、表情包；发布后仍可修改</p>
+    <div class="field">
+      <textarea id="momentText" rows="4" maxlength="2000" placeholder="这一刻的想法…"></textarea>
+    </div>
+    <div class="social-picks">
+      <button type="button" class="btn-code" id="btnMomentImg">🖼️ 照片</button>
+      <button type="button" class="btn-code" id="btnMomentVideo">🎬 视频</button>
+      <button type="button" class="btn-code" id="btnMomentVoice">🎙️ 语音</button>
+      <button type="button" class="btn-code" id="btnMomentEmoji">😊 表情包</button>
+      <button type="button" class="btn-code" id="btnMomentLoc">📍 位置</button>
+    </div>
+    <div class="moment-loc-row" id="momentLocBox" hidden></div>
+    <div class="moment-media" id="momentMediaBox"></div>
+    <div class="emoji-pick" id="momentEmojiBox" hidden></div>
+    <div class="field">
+      <label>谁可以看</label>
+      <select id="momentVis" style="width:100%;height:38px;">
+        <option value="friends">好友可见</option>
+        <option value="all">所有人可见</option>
+        <option value="custom">指定用户可见</option>
+      </select>
+    </div>
+    <div class="field" id="momentTargetBox" hidden>
+      <label>勾选可见用户（至少 1 名，至高账号默认勾选且不可取消）</label>
+      <div class="target-list" id="momentTargetList"></div>
+    </div>
+    <p class="field-err" id="momentErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnMomentCancel">取消</button>
+      <button class="btn-primary" id="btnMomentSubmit">发布</button>
+    </div>
+    <input type="file" id="momentFilePicker" accept="image/*" hidden>
+    <input type="file" id="momentVideoPicker" accept="video/*" hidden>
+    <input type="file" id="momentVoicePicker" accept="audio/*" hidden>
+  </div>
+
+  <!-- 举报朋友圈内容 -->
+  <div class="modal" id="modalMomentReport" hidden>
+    <h3>举报</h3>
+    <p class="modal-sub" id="momentRepTarget"></p>
+    <div class="field">
+      <label>举报理由</label>
+      <select id="momentRepQuick" style="width:100%;height:38px;">
+        <option>含有违禁词 / 不当言论</option>
+        <option>色情低俗内容</option>
+        <option>违法违规内容</option>
+        <option>侵犯他人权益</option>
+        <option>广告骚扰</option>
+        <option>其他</option>
+      </select>
+    </div>
+    <div class="field">
+      <textarea id="momentRepText" rows="3" maxlength="300" placeholder="补充说明（选填）"></textarea>
+    </div>
+    <p class="field-err" id="momentRepErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnMomentRepCancel">取消</button>
+      <button class="btn-primary" id="btnMomentRepOk">提交举报</button>
+    </div>
+  </div>
+
+  <!-- 靠北帖发帖 -->
+  <div class="modal" id="modalForumForm" hidden>
+    <h3>发布帖子</h3>
+    <p class="modal-sub">靠北帖 · 系统会自动标注你的昵称</p>
+    <div class="field">
+      <textarea id="forumText" rows="5" maxlength="5000" placeholder="想请教的问题 / 想说的话…（无需标题，直接发内容）"></textarea>
+    </div>
+    <p class="field-err" id="forumErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnForumCancel">取消</button>
+      <button class="btn-primary" id="btnForumSubmit">发布</button>
+    </div>
+  </div>
+
+  <!-- 靠北帖：新建一个帖（CMO） -->
+  <div class="modal" id="modalForumBoard" hidden>
+    <h3>新建靠北帖</h3>
+    <p class="modal-sub">每个帖都像一个群，创建后再勾选成员加入</p>
+    <div class="field">
+      <label>帖的名称</label>
+      <input id="forumBoardName" maxlength="20" placeholder="例如：技术请教 / 闲聊灌水">
+    </div>
+    <p class="field-err" id="forumBoardErr"></p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnForumBoardCancel">取消</button>
+      <button class="btn-primary" id="btnForumBoardOk">创建</button>
+    </div>
+  </div>
+
+  <!-- 跳过新手指引确认 -->
+  <div class="modal" id="modalGuideSkip" hidden>
+    <h3>确定跳过新手指引？</h3>
+    <p class="modal-sub">跳过之后仍可在「设置 → 新手指引」重新开始。</p>
+    <div class="modal-btns">
+      <button class="btn-ghost" id="btnGuideCancel">取消</button>
+      <button class="btn-primary" id="btnGuideConfirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新手指引遮罩 -->
+<div class="guide-layer" id="guideLayer" hidden>
+  <div class="guide-hole" id="guideHole"></div>
+  <div class="guide-card" id="guideCard">
+    <div class="guide-step" id="guideStep"></div>
+    <h4 id="guideTitle"></h4>
+    <p id="guideDesc"></p>
+    <div class="guide-btns">
+      <button type="button" class="btn-ghost" id="btnGuideSkip">跳过</button>
+      <button type="button" class="btn-ghost" id="btnGuidePrev">上一步</button>
+      <button type="button" class="btn-primary" id="btnGuideNext">下一步</button>
+    </div>
+  </div>
+</div>
+
+<!-- 轻提示 -->
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/qrcode.js?v=20261113m"></script>
+<script src="js/jsqr.js?v=20261113m"></script>
+<script src="js/net.js?v=20261117a"></script>
+<script src="js/protocol.js?v=20261113m"></script>
+<script src="js/lucky.js?v=20261113m"></script>
+<script src="js/ui.js?v=20261113m"></script>
+<script src="js/app.js?v=20261117a"></script>
+<script src="js/social.js?v=20261113m"></script>
+<script src="js/map.js?v=20261113m"></script>
+<script>
+/* ===== 白屏兜底（升级版）：脚本解析失败 OR 启动超时都进入可操作重试页，并收集错误详情 ===== */
+(function(){
+  window.__kbErrors = window.__kbErrors || []
+  window.addEventListener('error', function(e){ window.__kbErrors.push(String(e.message || e).slice(0,150)) })
+  window.addEventListener('unhandledrejection', function(e){ window.__kbErrors.push('Promise: ' + String(e.reason && e.reason.message || e.reason).slice(0,150)) })
+
+  function showBootFail(reason) {
+    if (window.__kbFailShown) return
+    window.__kbFailShown = 1
+    var lv = document.getElementById('loginView')
+    var mv = document.getElementById('mainView')
+    if ((lv && !lv.hidden) || (mv && !mv.hidden)) return   /* 页面其实出来了，不打扰 */
+    var d = document.createElement('div')
+    d.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#0a1233;color:#fff;padding:26px 22px;font:14px/1.8 sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center'
+    var errs = (window.__kbErrors && window.__kbErrors.length ? window.__kbErrors.slice(0,3).join('<br>') : '（无具体报错）')
+    d.innerHTML = '<div style="font-size:17px;font-weight:bold;margin-bottom:10px">页面启动失败</div>'
+      + '<div style="font-size:12.5px;color:#9fb0d6;margin-bottom:6px">' + reason + '</div>'
+      + '<div style="font-size:11px;color:#67718f;max-width:340px;word-break:break-all;margin-bottom:22px">' + errs + '<br>WebView: ' + (navigator.userAgent.match(/Chrome\/[\d.]+/) || ['未知'])[0] + '</div>'
+      + '<button id="kbRetryBtn" style="background:#07C160;color:#fff;border:none;border-radius:22px;padding:11px 44px;font-size:15px;font-weight:bold">重新加载</button>'
+      + '<div style="font-size:11.5px;color:#67718f;margin-top:16px">多次失败请更新系统「Android System WebView」<br>或截图此页发给管理员</div>'
+    document.body && document.body.appendChild(d)
+    var btn = document.getElementById('kbRetryBtn')
+    if (btn) btn.onclick = function(){ location.replace(location.pathname + '?r=' + Date.now()) }
+    /* 页面若随后自行恢复（慢网络最终加载完成），自动撤掉重试页 */
+    var iv = setInterval(function(){
+      var lv2 = document.getElementById('loginView')
+      var mv2 = document.getElementById('mainView')
+      if ((lv2 && !lv2.hidden) || (mv2 && !mv2.hidden)) { d.remove(); clearInterval(iv) }
+    }, 1500)
+  }
+
+  /* app.js 没解析成功（老 WebView 语法不兼容 / 资源加载失败） */
+  setTimeout(function(){
+    if (!window.__kbBooted) showBootFail('脚本解析或加载失败（网络慢或 WebView 过旧）')
+  }, 6000)
+  /* app.js 解析成功但启动流程卡住（登录页没显示出来） */
+  setTimeout(function(){
+    var lv = document.getElementById('loginView')
+    var mv = document.getElementById('mainView')
+    if (!((lv && !lv.hidden) || (mv && !mv.hidden))) showBootFail('启动流程超时（初始化未完成）')
+  }, 12000)
+})()
+</script>
+<script>
+/* ===== 手机 App 更新提示：新版可取消；太久不更新则强制 ===== */
+(function(){
+  try {
+    var LATEST_APK_VERSION = '1.3.7';   /* 发布新 APK 时：改这里 + 上传新 kbchat.apk */
+    window.KB_LATEST_APK = LATEST_APK_VERSION;   /* 设置页「检查更新」用 */
+    var m = /KBChatApp\/([\d.]+)/.exec(navigator.userAgent);
+    if (!m) return;
+    function v2n(v){ return v.split('.').map(function(x){ return parseInt(x, 10) || 0 }); }
+    var cur = v2n(m[1]), latest = v2n(LATEST_APK_VERSION);
+    var outdated = cur[0] < latest[0] || (cur[0] === latest[0] && (cur[1] < latest[1] || (cur[1] === latest[1] && cur[2] < latest[2])));
+    if (!outdated) return;
+
+    /* 强制条件：落后 2 个及以上次版本，或「稍后」距今超过 7 天 */
+    var st = {};
+    try { st = JSON.parse(localStorage.getItem('kbchat_upd') || '{}') } catch (e) {}
+    var gap = (latest[0] - cur[0]) * 100 + (latest[1] - cur[1]);
+    var dismissedAt = st.t || 0;
+    var force = gap >= 2 || (dismissedAt && Date.now() - dismissedAt > 7 * 24 * 3600 * 1000);
+
+    function goUpdate(){ location.href = '/kbchat.apk?v=1.3.7' }
+
+    if (force) {
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px';
+      ov.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:320px;width:100%;padding:24px 22px;text-align:center;font-family:inherit">'
+        + '<div style="font-size:40px;line-height:1">🔄</div>'
+        + '<h3 style="margin:12px 0 6px;font-size:17px;color:#111">发现新版本 v' + LATEST_APK_VERSION + '</h3>'
+        + '<p style="margin:0 0 18px;font-size:13px;color:#666;line-height:1.7">当前版本过旧，已停止维护<br>请更新后再继续使用</p>'
+        + '<button id="kbUpdGo" style="display:block;width:100%;padding:12px;border:none;border-radius:10px;background:#07C160;color:#fff;font-size:15px;font-weight:bold">立即更新</button>'
+        + '</div>';
+      (document.body || document.documentElement).appendChild(ov);
+      document.getElementById('kbUpdGo').onclick = goUpdate;
+      return;
+    }
+
+    /* 24 小时内点过「稍后」：本次不打扰 */
+    if (dismissedAt && Date.now() - dismissedAt < 24 * 3600 * 1000) return;
+
+    var bar = document.createElement('div');
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#07C160;color:#fff;padding:10px 14px;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+    bar.innerHTML = '🔄 检测到新版 App（v' + LATEST_APK_VERSION + '）&nbsp;'
+      + '<a href="/kbchat.apk?v=1.3.7" download="KBChat.apk" style="color:#fff;font-weight:bold;text-decoration:underline">立即更新</a>'
+      + '<span id="kbUpdLater" style="float:right;cursor:pointer;opacity:.85">稍后 ✕</span>';
+    (document.body || document.documentElement).appendChild(bar);
+    document.getElementById('kbUpdLater').onclick = function(){
+      bar.remove();
+      try { localStorage.setItem('kbchat_upd', JSON.stringify({ t: Date.now() })) } catch (e) {}
+    };
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
