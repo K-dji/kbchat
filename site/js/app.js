@@ -531,7 +531,20 @@ function openProfileCard(uid) {
 /* ---------- 设置页「检查更新」 ---------- */
 function openCheckUpdate() {
   const latest = (window.KB_LATEST_APK || '1.2.0')
+  const em = /KBChatExe\/([\d.]+)/.exec(navigator.userAgent)
   const m = /KBChatApp\/([\d.]+)/.exec(navigator.userAgent)
+  /* 桌面版（exe）：功能与网页版同步更新，不提供任何 APK 下载入口 */
+  if (em) {
+    const layer = document.createElement('div')
+    layer.className = 'qr-layer'
+    layer.innerHTML = '<div class="qr-box"><h3 style="text-align:center">💻 桌面版</h3>'
+      + '<p class="muted" style="text-align:center">当前版本 v' + esc(em[1]) + '<br>桌面版功能与网页版实时同步，无需手动更新<br>重新打开即加载最新功能</p>'
+      + '<div class="modal-btns"><button class="btn-ghost" id="cuCancel">好的</button></div></div>'
+    document.body.appendChild(layer)
+    layer.onclick = e => { if (e.target === layer) layer.remove() }
+    layer.querySelector('#cuCancel').onclick = () => layer.remove()
+    return
+  }
   const cur = m ? m[1] : null
   const v2n = v => v.split('.').map(x => parseInt(x, 10) || 0)
   let outdated = false
@@ -859,7 +872,13 @@ async function aiSend(text, images) {
           headers: { 'Content-Type': 'application/json', 'X-Token': Net.token || '' },
           body: JSON.stringify({ mode, model, messages: history, question: text || '请理解我发送的图片', images: images || [], stream: true, lang: aiLang() }),
         })
-        if (resp.ok && resp.body && resp.headers.get('content-type').indexOf('text/plain') > -1) {
+        if (!resp.ok) {
+          /* 业务错误（限流/服务异常）：直接把后端原因报给用户，不再发起第二次请求 */
+          let em = 'AI 服务暂时不可用（' + resp.status + '）'
+          try { const j = await resp.json(); if (j && j.error) em = j.error } catch (e2) {}
+          const err = new Error(em); err.fatal = true; throw err
+        }
+        if (resp.body && (resp.headers.get('content-type') || '').indexOf('text/plain') > -1) {
           const reader = resp.body.getReader()
           const dec = new TextDecoder()
           let buf = '', meta = null, full = '', lastRender = 0
@@ -872,7 +891,7 @@ async function aiSend(text, images) {
               if (nl < 0) continue
               try { meta = JSON.parse(buf.slice(0, nl)) } catch (e) { meta = {} }
               buf = buf.slice(nl + 1)
-              if (meta && meta.searchNote) full = '🔎 ' + meta.searchNote + '\n\n'
+              if (meta && meta.searchNote) full = (meta.searchNote.indexOf('⚠️') === 0 ? '' : '🔎 ') + meta.searchNote + '\n\n'
             }
             if (buf) { full += buf; buf = '' }
             const now = Date.now()
@@ -888,12 +907,15 @@ async function aiSend(text, images) {
             streamed = true
           }
         }
-      } catch (e) { /* 流式失败 → 回退整段 */ }
+      } catch (e) {
+        /* 业务错误（fatal）直接向上抛给最外层展示；真正的传输异常才回退整段请求 */
+        if (e && e.fatal) throw e
+      }
     }
     if (!streamed) {
       const r = await Net.aiChat({ mode, model, messages: history, question: text || '请理解我发送的图片', images, lang: aiLang() })
       Object.assign(typing, {
-        id: 'ai_a' + Date.now(), content: (r.searchNote ? '🔎 ' + r.searchNote + '\n\n' : '') + (r.reply || '（空回复）'),
+        id: 'ai_a' + Date.now(), content: (r.searchNote ? (r.searchNote.indexOf('⚠️') === 0 ? '' : '🔎 ') + r.searchNote + '\n\n' : '') + (r.reply || '（空回复）'),
         typing: false,
       })
     }
@@ -6225,14 +6247,10 @@ function bindMain() {
     layer.querySelector('#lbClose').onclick = () => layer.remove()
     layer.querySelector('#lbDownload').onclick = () => {
       const src = img.getAttribute('src') || ''
-      if (/^data:/.test(src)) {
-        downloadDataUri(src, '图片_' + Date.now() + (src.includes('image/png') ? '.png' : '.jpg'))
-        return
-      }
-      const a = document.createElement('a')
-      a.href = src
-      a.download = '图片_' + Date.now() + (src.includes('image/png') ? '.png' : '.jpg')
-      a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove()
+      const nm = '图片_' + Date.now() + (src.includes('image/png') ? '.png' : '.jpg')
+      if (/^data:/.test(src)) return downloadDataUri(src, nm)
+      /* /uploads/ 图片也走 Blob 下载：失败时报明确原因（过期/网络/服务器），不再静默 */
+      blobDownload(src, nm)
     }
   })
 
@@ -6382,18 +6400,32 @@ function bindMain() {
   })
 
   async function blobDownload(url, name) {
+    /* 大文件给足 3 分钟；超时/网络断/过期都给出明确可读的原因 */
+    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null
+    const to = ctrl ? setTimeout(() => { try { ctrl.abort() } catch (e) {} }, 180000) : null
     try {
       toast('正在下载 ' + (name || '文件') + ' …', 1600)
-      const r = await fetch(url, { cache: 'no-store' })
-      if (!r.ok) throw new Error('HTTP ' + r.status)
+      const r = await fetch(url, Object.assign({ cache: 'no-store' }, ctrl ? { signal: ctrl.signal } : {}))
+      if (!r.ok) {
+        if (r.status === 404 || r.status === 410) throw new Error('文件已过期或已被清理（聊天文件保存 10 天）')
+        if (r.status >= 500) throw new Error('服务器繁忙（' + r.status + '），请稍后再试')
+        throw new Error('下载失败（HTTP ' + r.status + '）')
+      }
       const b = await r.blob()
+      if (!b.size) throw new Error('下载内容为空，请重试')
       const u = URL.createObjectURL(b)
       const a = document.createElement('a')
       a.href = u
       a.download = name || '文件'
       document.body.appendChild(a); a.click(); a.remove()
       setTimeout(() => URL.revokeObjectURL(u), 60000)
-    } catch (err) { toast('下载失败：' + (err && err.message || '未知错误'), 3000) }
+      toast('下载完成：' + (name || '文件'), 2200)
+    } catch (err) {
+      const msg = (err && err.name === 'AbortError')
+        ? '下载超时（3 分钟），请检查网络后重试'
+        : '下载失败：' + (err && err.message || '未知错误')
+      toast(msg, 4000)
+    } finally { if (to) clearTimeout(to) }
   }
 
   el('btnCloseAdd').onclick = closeModal
