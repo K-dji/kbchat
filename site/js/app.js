@@ -6259,6 +6259,16 @@ function bindMain() {
     let scale = 1, tx = 0, ty = 0
     const apply = () => { img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')' }
     const reset = () => { scale = 1; tx = 0; ty = 0; apply() }
+    /* 平移钳制：放大后图片至少留 80px 在视口内，杜绝"甩出屏幕外" */
+    function clampT() {
+      if (scale <= 1) { tx = 0; ty = 0; return }
+      const lr = layer.getBoundingClientRect()
+      const cx = lr.left + lr.width / 2, cy = lr.top + lr.height / 2
+      const w = img.offsetWidth * scale, h = img.offsetHeight * scale
+      const m = 80
+      tx = Math.min(Math.max(tx, lr.left + m - cx - w / 2), lr.right - m - cx + w / 2)
+      ty = Math.min(Math.max(ty, lr.top + m - cy - h / 2), lr.bottom - m - cy + h / 2)
+    }
     function zoomAt(dx, dy, factor) {
       const ns = Math.min(6, Math.max(1, scale * factor))
       const k = ns / scale
@@ -6266,17 +6276,26 @@ function bindMain() {
       ty = dy - (dy - ty) * k
       scale = ns
       if (scale === 1) { tx = 0; ty = 0 }
+      clampT()
       apply()
     }
     const centerOf = () => {
       const r = img.getBoundingClientRect()
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
     }
-    /* 滚轮缩放（以鼠标位置为锚点） */
+    const onImg = (x, y) => {
+      const r = img.getBoundingClientRect()
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
+    }
+    /* 滚轮缩放：光标在图片上时以光标为锚点，否则以中心为锚点（防止图片被甩飞） */
     layer.addEventListener('wheel', ev => {
       ev.preventDefault()
-      const c = centerOf()
-      zoomAt(ev.clientX - c.x, ev.clientY - c.y, ev.deltaY < 0 ? 1.18 : 1 / 1.18)
+      let dx = 0, dy = 0
+      if (onImg(ev.clientX, ev.clientY)) {
+        const c = centerOf()
+        dx = ev.clientX - c.x; dy = ev.clientY - c.y
+      }
+      zoomAt(dx, dy, ev.deltaY < 0 ? 1.18 : 1 / 1.18)
     }, { passive: false })
     /* 双击：放大 ↔ 复原 */
     img.addEventListener('dblclick', ev => {
@@ -6294,7 +6313,8 @@ function bindMain() {
     })
     window.addEventListener('pointermove', ev => {
       if (!dragging) return
-      tx = mtx + (ev.clientX - msx); ty = mty + (ev.clientY - msy); apply()
+      tx = mtx + (ev.clientX - msx); ty = mty + (ev.clientY - msy)
+      clampT(); apply()
     })
     window.addEventListener('pointerup', () => { dragging = false })
     /* 触屏：单指拖动 / 双指捏合 */
@@ -6440,9 +6460,32 @@ function bindMain() {
   /* 资料弹窗底部也放一个注销入口 */
   el('btnCloseAccount2').onclick = () => { closeModal(); openCloseAccount() }
   /* 密保问答已移到独立弹窗（openSecQuizSetup），资料弹窗不再有 secQ/secA 输入框 */
+  /* 点遮罩：关闭当前弹窗（协议/资料等强制弹窗除外，保持原行为） */
   el('modalMask').addEventListener('click', e => {
-    if (e.target === el('modalMask') && !el('modalProfile').hidden && S.uid) closeModal()
+    if (e.target !== el('modalMask')) return
+    if (!el('modalProfile').hidden && S.uid) { closeModal(); return }
+    const vis = Array.from(document.querySelectorAll('.modal')).some(m => !m.hidden)
+    if (vis && el('modalAgreement').hidden) closeModal()
   })
+  /* ESC 关闭弹窗（强制弹窗除外） */
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return
+    try {
+      if (!el('modalAgreement').hidden || !el('modalProfile').hidden) return
+      const vis = Array.from(document.querySelectorAll('.modal')).some(m => !m.hidden)
+      if (vis) closeModal()
+    } catch (err) {}
+  })
+  /* 遮罩自愈：遮罩显示却没有任何可见弹窗 = 看不见的全屏拦截层（曾导致
+     侧栏「更多」等所有点击无反应），每秒体检一次自动收起 */
+  setInterval(() => {
+    try {
+      const mask = el('modalMask')
+      if (!mask || mask.hidden) return
+      const anyModal = Array.from(document.querySelectorAll('.modal')).some(m => !m.hidden)
+      if (!anyModal) mask.hidden = true
+    } catch (err) {}
+  }, 1000)
 
   window.addEventListener('resize', () => { if (S.activeRoom) enterChat(S.activeRoom) })
   window.addEventListener('focus', syncConversations)
