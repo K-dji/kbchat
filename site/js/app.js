@@ -4500,7 +4500,7 @@ function playMsgSound(force) {
       o.type = 'sine'
       o.frequency.setValueAtTime(freq, t0)
       if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + dur)
-      const peak = 0.09 * vol
+      const peak = 0.55 * vol   /* 原 0.09：用户反馈提示音太小；0.55 在正弦波下响亮但不削波 */
       g.gain.setValueAtTime(0.0001, t0)
       g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t0 + 0.012)
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
@@ -4744,7 +4744,13 @@ function showGamesView() {
   if (typeof syncMtab === 'function') syncMtab('games')
 }
 
-/* ---------- 忘记密码机制：设置 3 个密保问答（注册后 / 老用户登录未设置时弹出，必须设置，不可跳过） ---------- */
+/* ---------- 忘记密码机制：设置 3 个密保问答（登录未设置时建议弹出，可暂跳过） ----------
+ * 曾经"必须设置不可跳过"：全屏层挡住「更多」等一切按钮，多端用户都被卡死（用户实测反馈）。
+ * 现改为可跳过：点「暂不设置」/ 遮罩 / ESC 都能关闭，设置页里随时可以补设。 */
+function closeSecQuizLayer() {
+  const l = document.getElementById('secQuizLayer')
+  if (l) l.remove()
+}
 function openSecQuizSetup() {
   if (!(S.profile && S.profile.uid)) return
   if (document.getElementById('secQuizLayer')) return
@@ -4759,15 +4765,22 @@ function openSecQuizSetup() {
       <input id="sqA${i}" maxlength="40" placeholder="答案（只有你知道，不区分大小写）" style="width:100%;padding:8px 10px;border:1px solid var(--line,#ddd);border-radius:8px;font-size:13.5px">
     </div>`).join('')
   layer.innerHTML = `<div class="qr-box" style="max-width:420px;text-align:left">
-    <h3 style="text-align:center">🔐 忘记密码机制（必设）</h3>
-    <p class="muted" style="font-size:12.5px;text-align:center;margin:6px 0 10px">为保障账号安全，每位用户必须设置 3 个密保问题。<br>忘记密码时填 KB号 回答这 3 题，答对即可重设密码（无需同网络）</p>
+    <h3 style="text-align:center">🔐 忘记密码机制</h3>
+    <p class="muted" style="font-size:12.5px;text-align:center;margin:6px 0 10px">建议设置 3 个密保问题：忘记密码时填 KB号 回答这 3 题，答对即可重设密码（无需同网络）<br>暂时不设置也能正常使用全部功能</p>
     <div style="max-height:52vh;overflow-y:auto">${inputs()}</div>
     <p class="field-err" id="sqErr" style="color:#e74c3c;font-size:12px;min-height:16px;margin:4px 0"></p>
     <div class="modal-btns">
-      <button class="btn-primary" id="sqSave" style="width:100%">保存并启用</button>
+      <button class="btn-ghost" id="sqSkip">暂不设置</button>
+      <button class="btn-primary" id="sqSave">保存并启用</button>
     </div>
   </div>`
   document.body.appendChild(layer)
+  /* 点遮罩空白处 / ESC 也能关闭，不再堵死整个界面 */
+  layer.onclick = e => { if (e.target === layer) closeSecQuizLayer() }
+  const escHandler = e => { if (e.key === 'Escape') { closeSecQuizLayer(); document.removeEventListener('keydown', escHandler) } }
+  document.addEventListener('keydown', escHandler)
+  const skipBtn = layer.querySelector('#sqSkip')
+  if (skipBtn) skipBtn.onclick = () => { closeSecQuizLayer(); toast('已跳过，可随时在「设置 → 密保问答」中补设', 3200) }
   layer.querySelector('#sqSave').onclick = async () => {
     const sec3 = [0, 1, 2].map(i => ({ q: layer.querySelector('#sqQ' + i).value.trim(), a: layer.querySelector('#sqA' + i).value.trim() }))
     if (sec3.some(x => !x.q || !x.a)) { layer.querySelector('#sqErr').textContent = '请完整填写 3 个问题和答案'; return }
@@ -4782,7 +4795,8 @@ function openSecQuizSetup() {
     }
   }
 }
-/* 资料弹窗里的密保问答编辑（预填已有问题，答案需重新填写） */
+/* 资料弹窗里的密保问答编辑（预填已有问题，答案需重新填写）
+ * 已启用密保时：修改前必须先验证身份——输入账号密码 或 答对任意一道原密保问题（后端同样强制校验） */
 async function openSecQuizEdit() {
   let qs = ['', '', '']
   let has = false
@@ -4799,10 +4813,23 @@ async function openSecQuizEdit() {
       <input id="sqQ${i}" maxlength="60" value="${esc(qs[i] || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--line,#ddd);border-radius:8px;font-size:13.5px;margin-bottom:4px">
       <input id="sqA${i}" maxlength="40" placeholder="${has ? '重新填写答案（不回显）' : '答案（只有你知道，不区分大小写）'}" style="width:100%;padding:8px 10px;border:1px solid var(--line,#ddd);border-radius:8px;font-size:13.5px">
     </div>`).join('')
+  /* 已启用时的身份验证区：密码 或 原密保答案（任意答对一道即可） */
+  const verifyBlock = has ? `
+    <div style="background:rgba(230,162,60,.08);border:1px solid rgba(230,162,60,.35);border-radius:10px;padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">🛡️ 先验证身份（二选一）</div>
+      <input id="sqPwd" type="password" maxlength="64" placeholder="方式一：输入当前账号密码" style="width:100%;padding:8px 10px;border:1px solid var(--line,#ddd);border-radius:8px;font-size:13.5px;margin-bottom:8px">
+      <div class="muted" style="font-size:12px;margin:2px 0 4px">方式二：回答任意一道原密保问题（答对一道即可）</div>
+      ${[0, 1, 2].map(i => `
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span class="muted" style="font-size:12px;flex:0 0 auto;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(qs[i] || '')}">${esc(i + 1 + '. ' + (qs[i] || ''))}</span>
+          <input id="sqOld${i}" maxlength="40" placeholder="原答案" style="flex:1;min-width:0;padding:7px 9px;border:1px solid var(--line,#ddd);border-radius:8px;font-size:13px">
+        </div>`).join('')}
+    </div>` : ''
   layer.innerHTML = `<div class="qr-box" style="max-width:420px;text-align:left">
     <h3 style="text-align:center">🔐 密保问答${has ? '（已启用）' : ''}</h3>
     <p class="muted" style="font-size:12px;text-align:center;margin:6px 0 10px">忘记密码时填 KB号 回答这 3 题，答对即可重设密码${has ? '；保存后立即生效' : ''}<br><b style="color:#e6a23c">密保启用后不可清除，只能修改</b></p>
-    <div style="max-height:52vh;overflow-y:auto">${inputs()}</div>
+    ${verifyBlock}
+    <div style="max-height:${has ? '38vh' : '52vh'};overflow-y:auto">${inputs()}</div>
     <p class="field-err" id="sqErr" style="color:#e74c3c;font-size:12px;min-height:16px;margin:4px 0"></p>
     <div class="modal-btns">
       <button class="btn-ghost" id="sqSkip">取消</button>
@@ -4810,13 +4837,26 @@ async function openSecQuizEdit() {
     </div>
   </div>`
   document.body.appendChild(layer)
+  layer.onclick = e => { if (e.target === layer) layer.remove() }
   const skipBtn = layer.querySelector('#sqSkip')
   if (skipBtn) skipBtn.onclick = () => layer.remove()
   layer.querySelector('#sqSave').onclick = async () => {
     const sec3 = [0, 1, 2].map(i => ({ q: layer.querySelector('#sqQ' + i).value.trim(), a: layer.querySelector('#sqA' + i).value.trim() }))
     if (sec3.some(x => !x.q || !x.a)) { layer.querySelector('#sqErr').textContent = '请完整填写 3 个问题和答案'; return }
+    /* 已启用：先在前端做一次软校验，给出即时提示（后端仍会硬校验） */
+    const payload = { sec3 }
+    if (has) {
+      const pwd = layer.querySelector('#sqPwd') ? layer.querySelector('#sqPwd').value : ''
+      const olds = [0, 1, 2].map(i => layer.querySelector('#sqOld' + i) ? layer.querySelector('#sqOld' + i).value.trim() : '')
+      if (!pwd && !olds.some(x => x)) {
+        layer.querySelector('#sqErr').textContent = '请先验证身份：输入账号密码，或回答至少一道原密保问题'
+        return
+      }
+      if (pwd) payload.password = pwd
+      if (olds.some(x => x)) payload.answers = olds
+    }
     try {
-      await Net.sec3Set({ sec3 })
+      await Net.sec3Set(payload)
       if (S.profile) S.profile.hasSec3 = true
       layer.remove()
       toast('密保问答已保存', 2400)
