@@ -2282,7 +2282,7 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
             body: JSON.stringify({
               model,
               messages: outMessages,
-              max_tokens: mode === 'expert' ? 2000 : 1200,
+              max_tokens: /flash/i.test(model) ? 1024 : (mode === 'expert' ? 2000 : 1200),
               temperature: mode === 'quick' ? 0.6 : 0.7,
               stream: true,
             }),
@@ -2349,7 +2349,7 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
           body: JSON.stringify({
             model,
             messages: outMessages,
-            max_tokens: mode === 'expert' ? 2000 : 1200,
+            max_tokens: /flash/i.test(model) ? 1024 : (mode === 'expert' ? 2000 : 1200),
             temperature: mode === 'quick' ? 0.6 : 0.7,
           }),
           signal: AbortSignal.timeout(60000),
@@ -5187,6 +5187,7 @@ export default {
       if (url.pathname.startsWith('/downloads/')) {
         const file = url.pathname.slice('/downloads/'.length)
         const table = {
+          'KBChat-Setup-1.1.0.exe': 'https://github.com/K-dji/kbchat/releases/download/exe-v1.0.0/KBChat-Setup-1.1.0.exe',
           'KBChat-Setup-1.0.0.exe': 'https://github.com/K-dji/kbchat/releases/download/exe-v1.0.0/KBChat-Setup-1.0.0.exe',
           'KBChat-1.0.0-portable.zip': 'https://github.com/K-dji/kbchat/releases/download/exe-v1.0.0/KBChat-1.0.0-portable.zip',
         }
