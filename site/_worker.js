@@ -1961,10 +1961,22 @@ async function handleApi(request, env, ctx) {
       }
 
       /* 登录态：设置 / 更新自己的密保问答（3 问 3 答）。
-       * 密保 = 账号的二级密码机制：不可清除，只能修改（忘记密码找回的安全底线） */
+       * 密保 = 账号的二级密码机制：不可清除，只能修改（忘记密码找回的安全底线）。
+       * 已启用密保后修改：必须先验证身份（账号密码 或 答对任意一道原密保问题），防止会话被他人篡改找回通道 */
       if (p === '/api/sec3/set' && req.method === 'POST') {
         const b = await readBody(req, 1e5)
         if (b.clear === true) return sendJson(res, 400, { error: '密保问答不可清除，只能修改' })
+        if (Array.isArray(me.sec3) && me.sec3.length === 3) {
+          let verified = false
+          if (b.password && (await verifyPassword(String(b.password), me.password))) verified = true
+          if (!verified && Array.isArray(b.answers)) {
+            const ans = b.answers.map(x => String(x || '').trim().toLowerCase())
+            for (let i = 0; i < 3 && !verified; i++) {
+              if (ans[i] && (await verifyPassword(ans[i], me.sec3[i].a))) verified = true
+            }
+          }
+          if (!verified) return sendJson(res, 403, { error: '请先验证身份：输入当前账号密码，或正确回答其中一道原密保问题' })
+        }
         const arr = []
         const list = Array.isArray(b.sec3) ? b.sec3.slice(0, 3) : []
         for (const it of list) {
