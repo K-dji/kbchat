@@ -9,6 +9,17 @@
 <link rel="stylesheet" href="css/social.css?v=20261113m">
 <link rel="stylesheet" href="css/mobile.css?v=20261113m">
 <script>try{if(/KBChatApp\//.test(navigator.userAgent))document.documentElement.classList.add('kb-app');if(/KBChatExe\//.test(navigator.userAgent)){document.documentElement.classList.add('kb-app','kb-exe')}}catch(e){}</script>
+<style>
+    /* App/exe 内隐藏所有「下载客户端」入口（App 自己就是客户端）。
+       注意：必须放 head 里——曾放在启动屏 #kbSplash 内，启动屏被移除时规则跟着消失，
+       导致 App/exe 里下载入口复活 */
+    html.kb-app #rowApkDl,
+    html.kb-app .apk-entry,
+    html.kb-app #btnProductDl,
+    html.kb-app .pi-download,
+    html.kb-exe #rowCheckUpd,
+    html.kb-exe #rowApkDl { display:none !important }
+</style>
 </head>
 <body>
 
@@ -27,13 +38,6 @@
     @media (prefers-reduced-motion: reduce) {
       #kbSplash img, #kbSplash div { animation: none !important; }
     }
-    /* App 内隐藏所有「下载 App」入口（App 自己就是客户端） */
-    html.kb-app #rowApkDl,
-    html.kb-app .apk-entry,
-    html.kb-app #btnProductDl,
-    html.kb-app .pi-download,
-    html.kb-exe #rowCheckUpd,
-    html.kb-exe #rowApkDl { display:none !important }
   </style>
 </div>
 <script>
@@ -951,10 +955,10 @@
           <span>审核中 · 即将上线</span>
           <i class="pi-dl-btn pi-dl-dis">敬请期待</i>
         </div>
-        <a class="pi-dl-card is-ok" href="/downloads/KBChat-Setup-1.0.0.exe" download>
+        <a class="pi-dl-card is-ok" href="/downloads/KBChat-Setup-1.1.0.exe" download>
           <svg viewBox="0 0 24 24" class="pi-dl-ico" aria-hidden="true"><path fill="currentColor" d="M0 3.449L9.75 2.1v9.451H0m10.971-9.605L24 0v11.4H10.971M0 12.6h9.75v9.451L0 20.699M10.971 12.51H24V24l-12.9-1.818"/></svg>
           <b>Windows 版</b>
-          <span>v1.0.0 · 一键安装包</span>
+          <span>v1.1.0 · 一键安装包</span>
           <i class="pi-dl-btn">立即下载</i>
         </a>
       </div>
@@ -1498,7 +1502,7 @@
 <script src="js/protocol.js?v=20261113m"></script>
 <script src="js/lucky.js?v=20261113m"></script>
 <script src="js/ui.js?v=20261113m"></script>
-<script src="js/app.js?v=20261118a"></script>
+<script src="js/app.js?v=20261121a"></script>
 <script src="js/social.js?v=20261113m"></script>
 <script src="js/map.js?v=20261113m"></script>
 <script>
