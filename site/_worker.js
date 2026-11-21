@@ -5187,6 +5187,7 @@ export default {
       if (url.pathname.startsWith('/downloads/')) {
         const file = url.pathname.slice('/downloads/'.length)
         const table = {
+          'KBChat-Setup-1.1.1.exe': 'https://github.com/K-dji/kbchat/releases/download/exe-v1.0.0/KBChat-Setup-1.1.1.exe',
           'KBChat-Setup-1.1.0.exe': 'https://github.com/K-dji/kbchat/releases/download/exe-v1.0.0/KBChat-Setup-1.1.0.exe',
           'KBChat-Setup-1.0.0.exe': 'https://github.com/K-dji/kbchat/releases/download/exe-v1.0.0/KBChat-Setup-1.0.0.exe',
           'KBChat-1.0.0-portable.zip': 'https://github.com/K-dji/kbchat/releases/download/exe-v1.0.0/KBChat-1.0.0-portable.zip',
