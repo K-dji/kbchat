@@ -2224,12 +2224,12 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
               searchNote = '已联网搜索（' + sr.results.length + ' 条结果）'
               sys += '\n\n【联网搜索结果（' + nowIso().slice(0, 10) + '）】回答时参考并在末尾列出引用来源：\n' + sr.results.join('\n')
             } else {
-              searchNote = '联网搜索暂无结果，以下为模型直接回答'
+              searchNote = '⚠️ 联网搜索没有找到相关结果，本次由模型直接回答（未经联网核实，仅供参考）'
             }
-        } catch (e) {
-          searchNote = '联网搜索暂时不可用，以下为模型直接回答'
+          } catch (e) {
+            searchNote = '⚠️ 联网搜索失败（' + String((e && e.message) || '网络异常').slice(0, 80) + '），本次由模型直接回答（未经联网核实）'
+          }
         }
-      }
       /* CMO 管理助手：注入实时管理数据，可直接回答「查某账号违禁次数」等管理问题 */
       if (me.isAdmin) {
         try {
@@ -2299,6 +2299,12 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
               controller.enqueue(enc.encode(JSON.stringify({ searchNote }) + '\n'))
               const reader = glmStream.body.getReader()
               let sseBuf = ''
+              let emitted = ''   /* 已输出的正文：用于判断是否需要补错误提示 */
+              const emitErr = (msg) => {
+                const piece = (emitted ? '\n\n' : '') + msg
+                emitted += piece
+                try { controller.enqueue(enc.encode(piece)) } catch (e2) {}
+              }
               try {
                 while (true) {
                   const { done, value } = await reader.read()
@@ -2313,12 +2319,19 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
                     if (!payload || payload === '[DONE]') continue
                     try {
                       const j = JSON.parse(payload)
+                      /* GLM 流式也可能中途回错误 JSON：明确写给用户，不再静默截断 */
+                      if (j.error) { emitErr('⚠️ AI 输出中断：' + String(j.error.message || 'AI 服务返回错误').slice(0, 120)); continue }
                       const delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content
-                      if (delta) controller.enqueue(enc.encode(delta))
+                      if (delta) { emitted += delta; controller.enqueue(enc.encode(delta)) }
                     } catch (e) {}
                   }
                 }
-              } catch (e) {}
+              } catch (e) {
+                /* 网络中断 / 超时：正文后面补一条明确的中断说明 */
+                emitErr('⚠️ AI 输出中断（网络异常），请重新提问')
+              }
+              /* 一个字都没出来：不是空回答，是服务异常，直接报错 */
+              if (!emitted.trim()) emitErr('⚠️ AI 服务异常，没有返回内容，请稍后重试')
               controller.close()
             },
           })
@@ -5168,6 +5181,28 @@ export default {
         const res = await handleApi(request, env, ctx)
         if (saveChain && typeof saveChain.catch === 'function') ctx.waitUntil(saveChain.catch(() => {}))
         return res
+      }
+      /* 大文件下载代理：exe 包超过 Pages 单文件 25MB 限制，存 GitHub Release，
+         这里同域流式转发（带 Range 透传，支持断点续传），用户无感知跳外站 */
+      if (url.pathname.startsWith('/downloads/')) {
+        const file = url.pathname.slice('/downloads/'.length)
+        const table = {
+          'KBChat-1.0.0-portable.zip': 'https://github.com/K-dji/kbchat/releases/download/exe-v1.0.0/KBChat-1.0.0-portable.zip',
+        }
+        const target = table[file]
+        if (!target) return new Response('Not Found', { status: 404, headers: { 'Content-Type': 'text/plain' } })
+        const h = new Headers()
+        if (request.headers.get('range')) h.set('Range', request.headers.get('range'))
+        const upstream = await fetch(target, { headers: h, redirect: 'follow' })
+        const out = new Headers()
+        for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified']) {
+          const v = upstream.headers.get(k)
+          if (v) out.set(k, v)
+        }
+        if (!out.has('content-type')) out.set('content-type', 'application/zip')
+        out.set('content-disposition', 'attachment; filename="' + file + '"')
+        out.set('cache-control', 'public, max-age=86400')
+        return new Response(upstream.body, { status: upstream.status, headers: out })
       }
       return env.ASSETS.fetch(request)
     } catch (e) {
