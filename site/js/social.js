@@ -1168,7 +1168,13 @@ function renderGuideStep() {
   const hole = el('guideHole')
   const card = el('guideCard')
   if (!node) { hole.hidden = true; card.style.left = '50%'; card.style.top = '40%'; return }
-  if (typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'nearest' })
+  /* ☰ 子菜单内的目标（文件/收藏/意见箱）禁止 scrollIntoView：
+   * 它会把 .rail-nav 横向滚走 54px，整个侧栏错位、高亮框指到别的图标上（用户录屏实锤）。
+   * flyout 已经 .is-open 展开，目标本来就完整可见，无需滚动。 */
+  const inFlyout = !!(node.closest && node.closest('#railFlyout'))
+  const rn = document.querySelector('.rail-nav')
+  if (rn && rn.scrollLeft) rn.scrollLeft = 0   /* 自愈：任何原因导致的侧栏横向位移都复位 */
+  if (!inFlyout && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'nearest' })
   const r = node.getBoundingClientRect()
   /* 尺寸为 0 说明目标此刻其实不可见（被隐藏/未布局），不要把卡片甩到左上角 */
   if (!r.width && !r.height) {
@@ -1184,11 +1190,15 @@ function renderGuideStep() {
   hole.style.width = (r.width + pad * 2) + 'px'
   hole.style.height = (r.height + pad * 2) + 'px'
 
-  /* 指引卡片贴在按钮右侧，越界时翻到左侧 */
-  const cw = 300, ch = 170
+  /* 指引卡片贴在按钮右侧，垂直方向以图标为中心对齐（避免卡片飘到别处，看着"对不上"）；
+   * 越界时在视口内收紧，但保持与图标最近的可用位置 */
+  const cw = 300
+  card.style.left = '0px'; card.style.top = '0px'   /* 先归位再测实际高度，避免旧值影响 */
+  const chReal = card.offsetHeight || 170
   let left = r.right + 14
   if (left + cw > window.innerWidth - 12) left = Math.max(12, r.left - cw - 14)
-  let top = Math.min(Math.max(12, r.top - 10), window.innerHeight - ch - 12)
+  let top = Math.round(r.top + r.height / 2 - chReal / 2)
+  top = Math.min(Math.max(12, top), window.innerHeight - chReal - 12)
   card.style.left = left + 'px'
   card.style.top = top + 'px'
 }
@@ -1202,6 +1212,9 @@ function endGuide() {
   /* 收回指引期间展开的 ☰ 子菜单 */
   const fly = el('railFlyout')
   if (fly) fly.classList.remove('is-open')
+  /* 复位可能被 scrollIntoView 拖偏的侧栏横向位移 */
+  const rn = document.querySelector('.rail-nav')
+  if (rn) rn.scrollLeft = 0
   el('guideLayer').hidden = true
   markGuideDone()
 }
