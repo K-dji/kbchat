@@ -561,12 +561,12 @@ function openCheckUpdate() {
     inner = '<h3 style="text-align:center">🔄 发现新版本 v' + esc(latest) + '</h3>'
       + '<p class="muted" style="text-align:center">当前版本 v' + esc(cur) + '<br>更新后即可体验最新功能</p>'
       + '<div class="modal-btns"><button class="btn-ghost" id="cuCancel">取消</button>'
-      + '<a class="btn-primary" href="/kbchat.apk?v=1.3.7" download="KBChat.apk" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:#fff">立即更新</a></div>'
+      + '<a class="btn-primary" href="/kbchat.apk?v=2.0.0" download="KBChat.apk" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:#fff">立即更新</a></div>'
   } else {
     inner = '<h3 style="text-align:center">📱 手机版 App</h3>'
       + '<p class="muted" style="text-align:center">当前为网页端 · App 最新版本 v' + esc(latest) + '<br>下载安装后可在 App 内一键更新</p>'
       + '<div class="modal-btns"><button class="btn-ghost" id="cuCancel">取消</button>'
-      + '<a class="btn-primary" href="/kbchat.apk?v=1.3.7" download="KBChat.apk" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:#fff">下载 App</a></div>'
+      + '<a class="btn-primary" href="/kbchat.apk?v=2.0.0" download="KBChat.apk" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:#fff">下载 App</a></div>'
   }
   layer.innerHTML = '<div class="qr-box">' + inner + '</div>'
   document.body.appendChild(layer)
@@ -1623,7 +1623,7 @@ function bindLogin() {
   el('lnkAsk').onclick = openGuestAsk
   el('lnkProduct').onclick = () => openModal('modalProduct')
   el('btnProductClose').onclick = closeModal
-  el('btnProductDl').onclick = () => { location.href = '/kbchat.apk?v=1.3.7' }
+  el('btnProductDl').onclick = () => { location.href = '/kbchat.apk?v=2.0.0' }
   el('btnDelListClose').onclick = closeModal
   el('btnCertClose').onclick = closeModal
 
