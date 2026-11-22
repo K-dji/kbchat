@@ -477,11 +477,18 @@ function renderMessages() {
       ? `<div class="msg-ref" data-rid="${esc(m.ref.id)}"><b>${esc(m.ref.name || '消息')}</b>：${esc(m.ref.text || '')}</div>`
       : ''
     const avUid = self ? ((S.profile && S.profile.uid) || '') : (m.ownerId || '')
-    html += `<div class="msg ${self ? 'is-self' : ''}${multi ? ' is-multi' : ''}" data-mid="${esc(m.id)}">${pick}
+    /* 发送状态标记：pending=转圈（气泡半透明），failed=红色感叹号（点击重发） */
+    const stateHtml = m.pending
+      ? '<span class="msg-state pending" title="发送中…"><i class="msg-spin"></i></span>'
+      : (m.failed
+        ? '<span class="msg-state failed" data-resend="' + esc(m.id) + '" title="' + esc(m.errText || '发送失败') + '，点击重发">!</span>'
+        : '')
+    html += `<div class="msg ${self ? 'is-self' : ''}${multi ? ' is-multi' : ''}${m.pending ? ' is-pending' : ''}${m.failed ? ' is-failed' : ''}" data-mid="${esc(m.id)}">${pick}
       <div class="msg-av${avUid ? ' av-link' : ''}"${avUid ? ` data-uid="${esc(avUid)}"` : ''}>${avatarHtml(av)}</div>
       <div class="msg-main">
         ${showSender ? `<div class="msg-sender">${esc(m.senderName || '成员')}${lvBadgeOf(m.ownerId)}</div>` : ''}
         <div class="bubble">${refHtml}${body}</div>
+        ${stateHtml}
         ${trans}
       </div>
     </div>`
