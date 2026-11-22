@@ -4400,31 +4400,11 @@ if (p === '/api/ann/review' && req.method === 'POST') {
             })
           }
         }
-        /* AI 快速审查：每条文本消息先让 AI 判定是否合规，不合规立即拒绝（不入库 = 立刻删除）并警告；
-         * 文件传输助手（发给自己）与管理员消息不审。AI 不可用时放行，由本地违禁词兜底。 */
-        if (kind === 'text' && !me.isAdmin && roomId !== 'file_' + auth.uid) {
-          const mod = await aiModerateText(content)
-          if (!mod.ok) {
-            db.aiModLog = Array.isArray(db.aiModLog) ? db.aiModLog : []
-            db.aiModLog.push({
-              id: idOf(), uid: me.uid, nickname: me.nickname, wxid: me.wxid,
-              text: String(content).slice(0, 300), reason: mod.reason, roomId, at: nowIso(),
-            })
-            if (db.aiModLog.length > 500) db.aiModLog.splice(0, db.aiModLog.length - 500)
-            /* AI 实时收录新违禁词：发现的违规词自动进词库，下次由本地违禁词直接拦截（无需再过 AI） */
-            const newWord = String(mod.word || '').trim().slice(0, 30)
-            if (newWord && !db.bannedWords.includes(newWord)) {
-              db.bannedWords.push(newWord)
-              if (db.bannedWords.length > 500) db.bannedWords.splice(0, db.bannedWords.length - 500)
-            }
-            /* 违规警告：与违禁词命中同一套处置（警告 +1、满 3 次自动封号） */
-            try {
-              punishBannedWords(me, [newWord || 'AI审查违规'], content, { roomId, where: 'ai-审查' })
-            } catch (e) {}
-            save()
-            return sendJson(res, 403, { error: '消息未通过 AI 审查（' + mod.reason + '），已自动删除并警告' })
-          }
-        }
+        /* AI 快速审查改为异步（ctx.waitUntil）：不再阻塞发送。
+         * 此前每条文本同步 await AI 审查（免费模型链单个 8s 超时、最坏 3 连试），
+         * 是「按 Enter 后 10 秒气泡才出现」的根因。现在消息先入库先推送先返回，
+         * 审查在后台完成：违规则由系统撤回该消息（全体成员看到撤回提示），
+         * 发送者收到原因通知；词库收录与警告处置照旧。 */
         /* 引用：跟随消息存储（id/name/text 全部截断净化） */
         let ref = null
         if (b.ref && b.ref.id) {
@@ -4459,6 +4439,35 @@ if (p === '/api/ann/review' && req.method === 'POST') {
         db.readAt[auth.uid][roomId] = msg.createdAt
         saveSoon()
         members.forEach(u => push(u, 'msg', { message: msg }))
+        /* 异步 AI 审查（不阻塞本次响应）：违规时后台撤回该消息 */
+        if (kind === 'text' && !me.isAdmin && roomId !== 'file_' + auth.uid && ctx) {
+          ctx.waitUntil((async () => {
+            const mod = await aiModerateText(content)
+            if (mod.ok) return
+            db.aiModLog = Array.isArray(db.aiModLog) ? db.aiModLog : []
+            db.aiModLog.push({
+              id: idOf(), uid: me.uid, nickname: me.nickname, wxid: me.wxid,
+              text: String(content).slice(0, 300), reason: mod.reason, roomId, at: nowIso(),
+            })
+            if (db.aiModLog.length > 500) db.aiModLog.splice(0, db.aiModLog.length - 500)
+            /* AI 实时收录新违禁词：发现的违规词自动进词库，下次由本地违禁词直接拦截（无需再过 AI） */
+            const newWord = String(mod.word || '').trim().slice(0, 30)
+            if (newWord && !db.bannedWords.includes(newWord)) {
+              db.bannedWords.push(newWord)
+              if (db.bannedWords.length > 500) db.bannedWords.splice(0, db.bannedWords.length - 500)
+            }
+            /* 违规警告：与违禁词命中同一套处置（警告 +1、满 3 次自动封号，自带 warn 推送） */
+            try {
+              punishBannedWords(me, [newWord || 'AI审查违规'], content, { roomId, where: 'ai-审查' })
+            } catch (e) {}
+            /* 违规消息系统撤回：全体成员看到「xx 撤回了一条消息」 */
+            const mm = db.messages.find(x => x.id === msg.id)
+            if (mm) { mm.kind = 'recalled'; mm.content = '' }
+            save()
+            roomMembers(roomId).forEach(u => push(u, 'msgdel', { roomId, msgId: msg.id, recalled: true }))
+            push(auth.uid, 'notice', { text: '你的消息未通过 AI 审查已被撤回（' + String(mod.reason || '内容违规') + '）' })
+          })().catch(e => { try { console.error('[aiMod]', e && e.message) } catch (e2) {} }))
+        }
         return sendJson(res, 200, { ok: true, message: msg })
       }
 
