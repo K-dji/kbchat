@@ -838,8 +838,14 @@ function ensureAiConversation() {
 }
 let aiPendingImages = []
 async function aiSend(text, images) {
-  if (S.sending) return
-  S.sending = true
+  /* 排队机制：上一条还在回答时，新提问进入队列，回答结束后自动发送。
+   * 此前是 if (S.sending) return 直接丢弃——用户连续提问时消息凭空消失，看似"发送无效"。 */
+  if (S.aiBusy) {
+    (S.aiQueue = S.aiQueue || []).push({ text, images })
+    toast('AI 正在回答上一条，这条已排队自动发送')
+    return
+  }
+  S.aiBusy = true
   const now = Date.now()
   ;(images || []).forEach(url => S.messages.push({
     id: 'ai_u' + now + Math.random().toString(36).slice(2, 6), roomId: 'ai_chat', ownerId: S.uid,
@@ -937,8 +943,12 @@ async function aiSend(text, images) {
     Object.assign(typing, {
       id: 'ai_err' + Date.now(), content: '⚠️ ' + (e.message || 'AI 服务暂时不可用'), typing: false,
     })
+  } finally {
+    S.aiBusy = false
+    /* 队列里有排队提问：接续发送 */
+    const q = (S.aiQueue || []).shift()
+    if (q) setTimeout(() => { aiSend(q.text, q.images).catch(() => {}) }, 400)
   }
-  S.sending = false
   renderMessages(); scrollToBottom(); saveAiHistory()
 }
 
