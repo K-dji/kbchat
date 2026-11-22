@@ -2294,7 +2294,7 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
             body: JSON.stringify({
               model,
               messages: outMessages,
-              max_tokens: /flash/i.test(model) ? 1024 : (mode === 'expert' ? 2000 : 1200),
+              max_tokens: mode === 'expert' ? 4000 : 3072, /* flash 从 1024 提高：1024 tokens 约 600 汉字，长回答必截断 */
               temperature: mode === 'quick' ? 0.6 : 0.7,
               stream: true,
             }),
@@ -2312,6 +2312,7 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
               const reader = glmStream.body.getReader()
               let sseBuf = ''
               let emitted = ''   /* 已输出的正文：用于判断是否需要补错误提示 */
+              let hitLength = false /* 上游 max_tokens 截断标记 */
               const emitErr = (msg) => {
                 const piece = (emitted ? '\n\n' : '') + msg
                 emitted += piece
@@ -2333,7 +2334,9 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
                       const j = JSON.parse(payload)
                       /* GLM 流式也可能中途回错误 JSON：明确写给用户，不再静默截断 */
                       if (j.error) { emitErr('⚠️ AI 输出中断：' + String(j.error.message || 'AI 服务返回错误').slice(0, 120)); continue }
-                      const delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content
+                      const ch0 = j.choices && j.choices[0]
+                      if (ch0 && ch0.finish_reason === 'length') hitLength = true
+                      const delta = ch0 && ch0.delta && ch0.delta.content
                       if (delta) { emitted += delta; controller.enqueue(enc.encode(delta)) }
                     } catch (e) {}
                   }
@@ -2344,6 +2347,8 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
               }
               /* 一个字都没出来：不是空回答，是服务异常，直接报错 */
               if (!emitted.trim()) emitErr('⚠️ AI 服务异常，没有返回内容，请稍后重试')
+              /* 上游按 max_tokens 截断：明确告知用户，可回复"继续"接上 */
+              if (hitLength) emitErr('（回答因长度限制被截断，回复"继续"可接着看）')
               controller.close()
             },
           })
@@ -2361,7 +2366,7 @@ if (p === '/api/fbreq/answer' && req.method === 'POST') {
           body: JSON.stringify({
             model,
             messages: outMessages,
-            max_tokens: /flash/i.test(model) ? 1024 : (mode === 'expert' ? 2000 : 1200),
+            max_tokens: mode === 'expert' ? 4000 : 3072, /* flash 从 1024 提高：1024 tokens 约 600 汉字，长回答必截断 */
             temperature: mode === 'quick' ? 0.6 : 0.7,
           }),
           signal: AbortSignal.timeout(60000),
