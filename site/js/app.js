@@ -204,9 +204,7 @@ async function pollFallback() {
     if (S.activeRoom && S.pollTick % msgTick === 0) {
       const r = await Net.messages(S.activeRoom)
       let changed = false
-      ;(r.messages || []).forEach(m => {
-        if (!S.messages.some(x => x.id === m.id)) { S.messages.push(m); changed = true }
-      })
+      ;(r.messages || []).forEach(m => { if (absorbIncoming(m)) changed = true })
       if (changed) {
         renderMessages()
         if (S.stickBottom) scrollToBottom()
@@ -576,6 +574,23 @@ function openCheckUpdate() {
   layer.querySelector('#cuCancel').onclick = () => layer.remove()
 }
 
+/* 消息合并（SSE 与轮询共用）：自己的消息若与乐观渲染占位（pending/failed）同内容，
+ * 先移除占位再合并，避免「正式消息 + 占位消息」重复显示 */
+function absorbIncoming(m) {
+  if (!m) return false
+  if (m.ownerId === S.uid && m.kind !== 'system' && (m.id || '').indexOf('tmp_') !== 0) {
+    const dupe = (S.messages || []).find(x =>
+      (x.pending || x.failed) && (x.id || '').indexOf('tmp_') === 0 &&
+      x.roomId === m.roomId && x.kind === m.kind && x.content === m.content)
+    if (dupe) S.messages = S.messages.filter(x => x.id !== dupe.id)
+  }
+  if (!S.messages.some(x => x.id === m.id)) {
+    S.messages.push(m)
+    return true
+  }
+  return false
+}
+
 function onIncomingMessage(m) {
   if (!m) return
   const quietConv = !!(convPref(m.roomId) || {}).quiet
@@ -590,8 +605,7 @@ function onIncomingMessage(m) {
     }
   }
   if (m.roomId === S.activeRoom) {
-    if (!S.messages.some(x => x.id === m.id)) {
-      S.messages.push(m)
+    if (absorbIncoming(m)) {
       renderMessages()
       if (S.stickBottom) scrollToBottom()
       else if (m.ownerId !== S.uid) { S.jumpNew = (S.jumpNew || 0) + 1; if (typeof updateJumpPill === 'function') updateJumpPill() }
@@ -719,7 +733,7 @@ async function openDirect(peerUid, name, avatar) {
 
 /* ---------- 发送 ---------- */
 async function sendText() {
-  if (!S.activeRoom || S.sending) return
+  if (!S.activeRoom) return
   const input = el('msgInput')
   const text = input.value.replace(/\s+$/, '')
   if (S.activeRoom === 'ai_chat') {
@@ -731,7 +745,7 @@ async function sendText() {
     return
   }
   if (!text) return
-  input.value = ''
+  input.value = ''   /* 先清空输入框再发送：发送期间即可继续打字 */
   const ref = replyTo
   updateSendBtn()
   await doSend('text', text, null, { ref })
@@ -991,22 +1005,72 @@ window.playVoice = function (elx) {
   a.play().catch(() => { stop(); toast('语音播放失败') })
 }
 
+/* 发送锁：按会话各自加锁（不再全局单条锁），等待期间同会话防连点、其他会话照常发 */
+S.sendingMap = S.sendingMap || {}
+
 async function doSend(kind, content, fileName, extra) {
-  S.sending = true
-  try {
-    const m = await Net.send(S.activeRoom, kind, content, fileName, extra && extra.dur, extra && extra.ref)
-    if (!S.messages.some(x => x.id === m.id)) {
-      S.messages.push(m)
-      renderMessages()
-    }
-    scrollToBottom()
-    const c = S.conversations.find(x => x.roomId === m.roomId)
-    if (c) { c.lastMsg = m; c.ts = m.createdAt; c.unread = 0 }
-    renderChatList()
-  } catch (e) {
-    toast(e.message || '发送失败')
+  const rid = S.activeRoom
+  if (!rid) return
+  if (S.sendingMap[rid]) { toast('上一条还在发送中，请稍候'); return }
+  /* 乐观渲染：先插一条 pending 临时消息，马上显示马上滚到底（服务器返回后原地替换） */
+  const tmp = {
+    id: 'tmp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    roomId: rid, ownerId: S.uid, kind, content,
+    senderName: (S.profile && S.profile.nickname) || '我',
+    senderAvatar: (S.profile && S.profile.avatar) || '',
+    createdAt: new Date().toISOString(),
+    fileName: kind === 'file' ? (fileName || '') : '',
+    dur: kind === 'voice' ? Math.min(300, Math.max(1, Math.round(Number(extra && extra.dur) || 1))) : 0,
+    ref: (extra && extra.ref) || null,
+    pending: true,
+    _resend: { kind, content, fileName, extra },
   }
-  S.sending = false
+  S.messages.push(tmp)
+  if (S.activeRoom === rid) renderMessages()
+  scrollToBottom()
+  const c0 = S.conversations.find(x => x.roomId === rid)
+  if (c0) { c0.lastMsg = tmp; c0.ts = tmp.createdAt; c0.unread = 0; renderChatList() }
+
+  const p = (async () => {
+    try {
+      const m = await Net.send(rid, kind, content, fileName, extra && extra.dur, extra && extra.ref)
+      /* 成功：按 tmp.id 找到占位消息原地替换为服务端正式消息。
+       * 若轮询已提前把同一条正式消息拉进列表，则移除占位（避免同 id 两条） */
+      const t = S.messages.find(x => x.id === tmp.id)
+      if (t) {
+        const at = S.messages.indexOf(t)
+        if (S.messages.some(x => x.id === m.id && x !== t)) S.messages.splice(at, 1)
+        else S.messages[at] = m
+      } else if (!S.messages.some(x => x.id === m.id)) {
+        S.messages.push(m)
+      }
+      if (S.activeRoom === rid) renderMessages()
+      scrollToBottom()
+      const c = S.conversations.find(x => x.roomId === rid)
+      if (c) { c.lastMsg = m; c.ts = m.createdAt; c.unread = 0; renderChatList() }
+    } catch (e) {
+      /* 失败：占位消息标红 + 重发按钮，输入框内容早已清空不再回填（消息内容保留在气泡里可复制） */
+      const t = S.messages.find(x => x.id === tmp.id)
+      if (t) { t.pending = false; t.failed = true; t.errText = (e && e.message) || '发送失败' }
+      if (S.activeRoom === rid) renderMessages()
+      renderChatList()
+      toast(t ? (t.errText + '，点击气泡旁的 ↻ 可重发') : (e && e.message) || '发送失败', 3200)
+    }
+  })()
+  S.sendingMap[rid] = p
+  const clear = () => { if (S.sendingMap[rid] === p) delete S.sendingMap[rid] }
+  p.then(clear, clear)
+  await p
+}
+
+/* 重发失败的占位消息：移除旧占位 → 按原参数重新走一次乐观发送（重发按钮只出现在当前会话） */
+async function resendFailed(tmpId) {
+  const t = S.messages.find(x => x.id === tmpId)
+  if (!t || !t.failed || !t._resend) return
+  const r = t._resend
+  S.messages = S.messages.filter(x => x.id !== tmpId)
+  renderMessages()
+  await doSend(r.kind, r.content, r.fileName, r.extra)
 }
 
 async function sendImage(file) {
@@ -6444,7 +6508,10 @@ function bindMain() {
   /* 引用块跳转：点引用 → 滚到原消息并高亮 */
   el('msgStack').addEventListener('click', e => {
     const rf = e.target.closest('.msg-ref')
-    if (rf) { jumpToMessage(rf.dataset.rid) }
+    if (rf) { jumpToMessage(rf.dataset.rid); return }
+    /* 发送失败的消息：点红色感叹号重发 */
+    const st = e.target.closest('.msg-state.failed[data-resend]')
+    if (st) { resendFailed(st.dataset.resend) }
   })
   /* 文件消息下载：一律走 fetch → Blob → blob: URL。
    * 直接点链接下载会被浏览器/网络层以各种理由拦（Chrome 报「无法下载-上网受阻」），
