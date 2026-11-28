@@ -225,6 +225,8 @@ const Net = {
   blockUser(uid, on) { return Net.api('/api/block', { method: 'POST', body: { uid, on: on !== false } }) },
   deleteFriend(uid) { return Net.api('/api/friends/delete', { method: 'POST', body: { uid } }) },
   convClear(roomId) { return Net.api('/api/conv/clear', { method: 'POST', body: { roomId } }) },
+  /* 公用中转站（隐藏房间）：解锁当前账号（访问 /kkk/ 入口后调用，服务端永久标记） */
+  relayUnlock() { return Net.api('/api/relay/unlock', { method: 'POST', body: {} }) },
   /* 天气：lat/lon 或 city 二选一 */
   weather(params) {
     const q = params.lat != null
