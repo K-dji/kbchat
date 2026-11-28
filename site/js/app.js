@@ -4171,7 +4171,7 @@ async function openDelListModal() {
 }
 
 /* ---------- 应用内文件剪贴板（复制文件/图片 → 任意会话粘贴落库） ---------- */
-const KB_CLIP_MARK = /^KBChat-Clip-\d+$/
+const KB_CLIP_MARK = /KBChat-Clip-\d+/
 function pasteClipMark(at) {
   /* 同步写系统剪贴板标记：Windows 剪贴板常有残留文本，
    * 粘贴事件必须靠这个标记才能区分「应用内复制的文件」与「普通文字」 */
