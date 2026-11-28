@@ -22,6 +22,14 @@ const S = {
 
 /* ---------- 启动 ---------- */
 async function boot() {
+  /* 隐藏入口 /kkk/（公用中转站）：把路径改写回首页继续正常启动，
+   * 并记住「待解锁」，登录后调解锁接口给账号永久开启 */
+  try {
+    if (location.pathname.indexOf('/kkk') === 0) {
+      sessionStorage.setItem('kb_kkk_pending', '1')
+      history.replaceState(null, '', '/')
+    }
+  } catch (e) {}
   /* 登录态存 sessionStorage：关闭浏览器即退出登录。
    * 老版本 token 在 localStorage——一次性迁入 sessionStorage 并清除（本次会话不掉线，下次关闭浏览器后生效） */
   try {
@@ -118,6 +126,16 @@ function enterApp(data, opts) {
   if (blockedList.length) {
     toast('您已被管理员断绝「' + blockedList.map(b => b.name).join('、') + '」的关系', 4800)
   }
+  /* 隐藏房间「公用中转站」解锁：/kkk/ 入口访问过（本次或之前留的标记）→ 调解锁接口永久开启 */
+  try {
+    if (sessionStorage.getItem('kb_kkk_pending') === '1') {
+      sessionStorage.removeItem('kb_kkk_pending')
+      Net.relayUnlock().then(() => {
+        toast('🔓 已解锁隐藏房间「公用中转站」（仅 CMO 可发言，所有人可查看）', 3600)
+        syncConversations()
+      }).catch(() => {})
+    }
+  } catch (e) {}
   /* 应用本地聊天背景偏好 */
   setTimeout(applyChatBg, 50)
   /* 移动端（竖屏）显示 4 图标底部导航 */
@@ -696,6 +714,16 @@ async function openRoom(roomId, kind) {
   if (oc0 && oc0.unread) { oc0.unread = 0; renderChatList(); renderRail() }
   el('emptyChat').hidden = true
   el('composer').hidden = false
+  /* 公用中转站：非 CMO 输入框只读（提示仅 CMO 可发言），CMO 正常 */
+  try {
+    const mi = el('msgInput')
+    if (roomId === 'kkk' && !(S.profile && S.profile.isAdmin)) {
+      mi.disabled = true
+      mi.placeholder = '🚉 公用中转站 · 仅 CMO 可发言，所有人可查看'
+    } else {
+      mi.disabled = false
+    }
+  } catch (e) {}
   renderChatHeader()
   renderMessages()
   renderChatList()
@@ -1021,6 +1049,11 @@ S.sendingMap = S.sendingMap || {}
 async function doSend(kind, content, fileName, extra) {
   const rid = S.activeRoom
   if (!rid) return
+  /* 公用中转站（隐藏房间）：仅 CMO 可发言（前端守卫，服务端同样校验 403） */
+  if (rid === 'kkk' && !(S.profile && S.profile.isAdmin)) {
+    toast('公用中转站仅 CMO 可以发言，所有人可查看')
+    return
+  }
   if (S.sendingMap[rid]) { toast('上一条还在发送中，请稍候'); return }
   /* 乐观渲染：先插一条 pending 临时消息，马上显示马上滚到底（服务器返回后原地替换） */
   const tmp = {
@@ -4152,6 +4185,18 @@ function showMsgMenu(e, m) {
   }])
   if (text) items.push(['🔍 查找', () => window.open('https://www.bing.com/search?q=' + encodeURIComponent(m.content.slice(0, 100)), '_blank')])
   if (text) items.push(['🌐 翻译', () => doTranslate(m)])
+  /* 文件/图片消息：复制到应用内剪贴板（本地持久），到其他会话 Ctrl+V 粘贴即作为新消息发出（服务端落库） */
+  if (m.kind === 'file' || m.kind === 'image') items.push([
+    m.kind === 'file' ? '📋 复制文件' : '📋 复制图片',
+    () => {
+      try {
+        localStorage.setItem('kbchat_clip', JSON.stringify({
+          kind: m.kind, content: m.content, fileName: m.fileName || '', at: Date.now(),
+        }))
+        toast('已复制，去其他会话在输入框按 Ctrl+V 粘贴发送', 3200)
+      } catch (e) { toast('复制失败') }
+    },
+  ])
   if (mine) {
     items.push(['🗑️ 删除（撤回）', async () => {
       if (!confirm('撤回这条消息？所有人都会看到「你撤回了一条消息」。')) return
@@ -5955,6 +6000,37 @@ function bindMain() {
   })
 
   el('btnImage').onclick = () => el('filePicker').click()
+
+  /* 📋 输入框粘贴发送：
+   * 1) 系统剪贴板里有文件（截图/复制的文件）→ 直接作为文件消息发送；
+   * 2) 应用内右键「复制」过的文件/图片消息 → 粘贴即作为新消息发出（服务端落库，非临时链接） */
+  el('msgInput').addEventListener('paste', async e => {
+    if (!S.activeRoom) return
+    const dt = e.clipboardData
+    const items = dt ? Array.from(dt.items || []) : []
+    const osFiles = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean)
+    const hasText = items.some(i => i.kind === 'string')
+    if (osFiles.length) {
+      e.preventDefault()
+      for (const f of osFiles.slice(0, 5)) {
+        if (f.size > 500 * 1024 * 1024) { toast('「' + (f.name || '文件') + '」超过 500MB，已跳过'); continue }
+        try {
+          toast('正在上传 ' + (f.name || '剪贴板文件') + '…', 2600)
+          const r2 = await Net.uploadLarge(f)
+          await doSend('file', r2.url, f.name || '粘贴的文件')
+        } catch (err) { toast('粘贴发送失败：' + (err.message || '未知错误'), 3000) }
+      }
+      return
+    }
+    let clip = null
+    try { clip = JSON.parse(localStorage.getItem('kbchat_clip') || 'null') } catch (e2) {}
+    if (!hasText && clip && (clip.kind === 'file' || clip.kind === 'image') && clip.content) {
+      e.preventDefault()
+      await doSend(clip.kind, clip.content, clip.fileName || '')
+      toast('已粘贴发送')
+    }
+  })
+
   el('filePicker').onchange = async e => {
     const file = e.target.files && e.target.files[0]
     e.target.value = ''
