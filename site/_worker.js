@@ -381,6 +381,8 @@ function publicUser(u, viewerUid) {
     isFriend: viewerUid ? (db.friends[viewerUid] || []).some(f => f.uid === u.uid) : false,
     isAdmin: !!u.isAdmin,
     role: u.isAdmin ? (u.role || ADMIN_ROLE) : '',
+    /* 公用中转站（隐藏房间）：是否已通过 /kkk/ 入口解锁 */
+    kkkUnlock: !!u.kkkUnlock,
   }
 }
 
@@ -772,6 +774,8 @@ function notifyAccount(uid, extra) {
 }
 
 function roomMembers(roomId) {
+  /* 公用中转站（隐藏房间）：全员可见，读权限人人有；发言权由 /api/send 单独限制为 CMO */
+  if (roomId === 'kkk') return Object.keys(db.users)
   /* 文件传输助手：单人专属房间，成员只有自己 */
   if (roomId.startsWith('file_')) return [roomId.slice(5)]
   if (roomId.startsWith('grp_')) {
@@ -920,6 +924,14 @@ function unreadOf(uid, roomId) {
   return db.messages.filter(m => m.roomId === roomId && m.ownerId !== uid && m.createdAt > since).length
 }
 function conversationFor(uid, roomId) {
+  /* 公用中转站（隐藏房间）：仅 CMO 可发言，所有人可查看 */
+  if (roomId === 'kkk') {
+    const last = lastMessageOf(roomId)
+    return {
+      roomId, kind: 'relay', name: '公用中转站', avatar: '\ud83d\ude89', members: [uid],
+      lastMsg: last, ts: last ? last.createdAt : nowIso(), unread: unreadOf(uid, roomId),
+    }
+  }
   /* 文件传输助手会话 */
   if (roomId.startsWith('file_') && roomId === 'file_' + uid) {
     const last = lastMessageOf(roomId)
@@ -952,12 +964,16 @@ function conversationFor(uid, roomId) {
 }
 function conversationsOf(uid) {
   const rooms = new Set()
-  db.messages.forEach(m => { if (roomMembers(m.roomId).includes(uid)) rooms.add(m.roomId) })
+  /* kkk（公用中转站）不在自动扫描之列：roomMembers('kkk') 是全员，不能因为有人发过消息就出现在所有人列表 */
+  db.messages.forEach(m => { if (m.roomId !== 'kkk' && roomMembers(m.roomId).includes(uid)) rooms.add(m.roomId) })
   Object.keys(db.groups).forEach(r => { if ((db.groups[r].members || []).includes(uid)) rooms.add(r) })
   /* 好友单聊即使还没有消息也要出现，保证每个用户都有 CMO 的对话框 */
   ;(db.friends[uid] || []).forEach(f => { if (db.users[f.uid]) rooms.add(dmRoomId(uid, f.uid)) })
   /* 文件传输助手固定出现在会话列表（跨设备传文件中转，文件 10 天自动清理） */
   rooms.add('file_' + uid)
+  /* 公用中转站（隐藏玩法）：访问过 /kkk/ 隐藏入口（服务端已标记 kkkUnlock）或 CMO 本人 */
+  const meRow = db.users[uid]
+  if (meRow && (meRow.kkkUnlock || meRow.isAdmin)) rooms.add('kkk')
   /* 已被断绝关系的单聊不再出现在会话列表里（记录仍保留在库里，管理端可查） */
   const blockedSet = new Set(Object.keys(db.blocked[uid] || {}))
   const visible = Array.from(rooms).filter(r => {
@@ -4175,6 +4191,13 @@ if (p === '/api/ann/review' && req.method === 'POST') {
         return sendJson(res, 200, { ok: true })
       }
 
+      /* 公用中转站（隐藏玩法）解锁：访问 /kkk/ 隐藏入口后由前端调用，
+       * 给账号永久开启该会话（换设备/重登仍生效），CMO 无需解锁天然可见 */
+      if (p === '/api/relay/unlock' && req.method === 'POST') {
+        if (!me.kkkUnlock) { me.kkkUnlock = true; saveSoon() }
+        return sendJson(res, 200, { ok: true, unlocked: true })
+      }
+
       if (p === '/api/search' && req.method === 'GET') {
         const kw = (url.searchParams.get('kw') || '').trim().toLowerCase()
         if (!kw) return sendJson(res, 200, { users: [] })
@@ -4359,6 +4382,10 @@ if (p === '/api/ann/review' && req.method === 'POST') {
         if (roomId.startsWith('file_') && roomId !== 'file_' + auth.uid) {
           return sendJson(res, 403, { error: '文件传输助手只能发给自己' })
         }
+        /* 公用中转站（隐藏房间）：仅 CMO 可发言，所有人可查看 */
+        if (roomId === 'kkk' && !me.isAdmin) {
+          return sendJson(res, 403, { error: '公用中转站仅 CMO 可以发言，所有人可查看' })
+        }
         if (!content.trim()) return sendJson(res, 400, { error: '消息内容不能为空' })
         /* 定位消息：content 存紧凑 JSON，只保留坐标/地名/精度，避免塞入任意字段 */
         if (kind === 'location') {
@@ -4443,7 +4470,11 @@ if (p === '/api/ann/review' && req.method === 'POST') {
         db.readAt[auth.uid] = db.readAt[auth.uid] || {}
         db.readAt[auth.uid][roomId] = msg.createdAt
         saveSoon()
-        members.forEach(u => push(u, 'msg', { message: msg }))
+        /* 公用中转站：消息只推给解锁过的用户与 CMO（普通用户不该被隐藏房间打扰） */
+        ;(roomId === 'kkk'
+          ? Object.keys(db.users).filter(x => db.users[x].kkkUnlock || db.users[x].isAdmin)
+          : members
+        ).forEach(u => push(u, 'msg', { message: msg }))
         /* 异步 AI 审查（不阻塞本次响应）：违规时后台撤回该消息 */
         if (kind === 'text' && !me.isAdmin && roomId !== 'file_' + auth.uid && ctx) {
           ctx.waitUntil((async () => {
@@ -5232,6 +5263,25 @@ export default {
         out.set('content-disposition', 'attachment; filename="' + file + '"')
         out.set('cache-control', 'public, max-age=86400')
         return new Response(upstream.body, { status: upstream.status, headers: out })
+      }
+      /* 隐藏入口 /kkk/：返回主页 HTML，前端检测路径后改写回首页并解锁「公用中转站」。
+       * 注意 1：必须请求 '/'（请求 '/index.html' 会被资源层 308 规范化到 '/'，地址栏丢路径）
+       * 注意 2：主页里 script/css 是相对路径，在 /kkk/ 下会解析成 /kkk/js/… 全部 404，
+       *         所以这里注入 <base href="/"> 让相对路径仍指向站点根 */
+      if (url.pathname === '/kkk' || url.pathname === '/kkk/') {
+        try {
+          const idx = await env.ASSETS.fetch(new URL('/', url.origin))
+          let html = await idx.text()
+          if (!/<base\s/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1><base href="/">')
+          return new Response(html, {
+            headers: {
+              'content-type': idx.headers.get('content-type') || 'text/html; charset=utf-8',
+              'cache-control': 'no-store',
+            },
+          })
+        } catch (e) {
+          return env.ASSETS.fetch(new URL('/', url.origin))
+        }
       }
       return env.ASSETS.fetch(request)
     } catch (e) {
