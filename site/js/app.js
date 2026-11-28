@@ -4170,6 +4170,42 @@ async function openDelListModal() {
   }
 }
 
+/* ---------- 应用内文件剪贴板（复制文件/图片 → 任意会话粘贴落库） ---------- */
+const KB_CLIP_MARK = /^KBChat-Clip-\d+$/
+function pasteClipMark(at) {
+  /* 同步写系统剪贴板标记：Windows 剪贴板常有残留文本，
+   * 粘贴事件必须靠这个标记才能区分「应用内复制的文件」与「普通文字」 */
+  const mark = 'KBChat-Clip-' + at
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(mark).catch(() => {})
+      return
+    }
+  } catch (e) {}
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = mark
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    ta.remove()
+  } catch (e) {}
+}
+async function sendClipboardFile() {
+  let clip = null
+  try { clip = JSON.parse(localStorage.getItem('kbchat_clip') || 'null') } catch (e) {}
+  if (!clip || !['file', 'image'].includes(clip.kind) || !clip.content) {
+    toast('还没有复制文件：先右键文件消息 →「复制文件」', 3000)
+    return false
+  }
+  if (!S.activeRoom) { toast('请先选择一个会话'); return false }
+  await doSend(clip.kind, clip.content, clip.fileName || '')
+  toast('已粘贴发送')
+  try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText('').catch(() => {}) } catch (e) {}
+  return true
+}
+
 /* ---------- 消息右键菜单（复制/查找/翻译/删除/转发/多选/举报） ---------- */
 let msgMenuEl = null
 function closeMsgMenu() { if (msgMenuEl) { msgMenuEl.remove(); msgMenuEl = null } }
@@ -4190,10 +4226,14 @@ function showMsgMenu(e, m) {
     m.kind === 'file' ? '📋 复制文件' : '📋 复制图片',
     () => {
       try {
+        const at = Date.now()
         localStorage.setItem('kbchat_clip', JSON.stringify({
-          kind: m.kind, content: m.content, fileName: m.fileName || '', at: Date.now(),
+          kind: m.kind, content: m.content, fileName: m.fileName || '', at,
         }))
-        toast('已复制，去其他会话在输入框按 Ctrl+V 粘贴发送', 3200)
+        /* 同时写系统剪贴板标记：Windows 剪贴板常有残留文本，
+         * 粘贴事件靠这个标记识别「这是应用内复制的文件」而不是误粘旧文字 */
+        pasteClipMark(at)
+        toast('已复制，去其他会话按 Ctrl+V 或点「＋ → 粘贴文件」发送', 3600)
       } catch (e) { toast('复制失败') }
     },
   ])
@@ -6000,6 +6040,8 @@ function bindMain() {
   })
 
   el('btnImage').onclick = () => el('filePicker').click()
+  /* 显式粘贴入口：不依赖系统剪贴板，直接把右键复制过的文件作为新消息发出 */
+  if (el('btnPasteClip')) el('btnPasteClip').onclick = () => { sendClipboardFile() }
 
   /* 📋 输入框粘贴发送：
    * 1) 系统剪贴板里有文件（截图/复制的文件）→ 直接作为文件消息发送；
@@ -6024,10 +6066,15 @@ function bindMain() {
     }
     let clip = null
     try { clip = JSON.parse(localStorage.getItem('kbchat_clip') || 'null') } catch (e2) {}
-    if (!hasText && clip && (clip.kind === 'file' || clip.kind === 'image') && clip.content) {
+    /* 识别应用内「复制文件」写入的系统剪贴板标记。
+     * 旧逻辑要求剪贴板完全无文本，Windows 下剪贴板几乎总有残留文字 → 永远走不到这里，
+     * 表现为「复制文件后 Ctrl+V 只粘出旧文字/没反应」。现在优先认标记，普通文本粘贴不受影响。 */
+    const pastedText = dt ? String(dt.getData('text/plain') || '').trim() : ''
+    const markHit = KB_CLIP_MARK.test(pastedText)
+    if (clip && (clip.kind === 'file' || clip.kind === 'image') && clip.content &&
+        (markHit || (!hasText && !pastedText))) {
       e.preventDefault()
-      await doSend(clip.kind, clip.content, clip.fileName || '')
-      toast('已粘贴发送')
+      await sendClipboardFile()
     }
   })
 
