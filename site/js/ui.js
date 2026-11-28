@@ -305,6 +305,11 @@ function renderChatHeader() {
   if (!c) { el('chatTitle').textContent = '靠北 Chat'; st.textContent = ''; return }
   el('chatTitle').textContent = c.name + (c.kind === 'group' ? ` (${(c.members || []).length})` : '')
   /* 单聊显示在线/离线（presence 已改为心跳纠偏，状态准确）；群聊显示成员数 */
+  if (c.kind === 'relay') {
+    st.textContent = (S.profile && S.profile.isAdmin) ? '公用中转站 · 仅你（CMO）可发言，所有人可查看' : '公用中转站 · 仅 CMO 可发言，所有人可查看'
+    st.className = 'chat-status'
+    return
+  }
   if (c.kind === 'ai') { st.textContent = ''; st.className = 'chat-status'; return }
   if (c.kind === 'group') {
     const names = (c.memberNames || []).join('、')
