@@ -2,30 +2,210 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>靠北 Chat · 隐藏入口</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f6f8">
+<title>公用中转站 · 靠北 Chat</title>
 <style>
-  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
-         background:#0a1233; color:#cfd8ff; font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; }
-  .card { text-align:center; padding:32px 28px; border-radius:16px; background:rgba(255,255,255,.06); }
-  .ico { font-size:44px; line-height:1; }
-  h1 { margin:14px 0 8px; font-size:19px; color:#fff; }
-  p { margin:0; font-size:13px; opacity:.75; }
+  :root{
+    --bg:#f5f6f8; --card:#fff; --ink:#1f2329; --muted:#909399; --line:#e8eaed;
+    --brand:#07c160; --bubble:#fff; --shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    background:var(--bg);color:var(--ink);
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex;flex-direction:column;
+  }
+  header{
+    flex:none;background:var(--card);border-bottom:1px solid var(--line);
+    padding:calc(env(safe-area-inset-top) + 14px) 16px 12px;
+    box-shadow:var(--shadow);position:relative;z-index:2;
+  }
+  .hd-row{display:flex;align-items:center;gap:10px}
+  .hd-icon{
+    width:34px;height:34px;border-radius:9px;flex:none;
+    background:linear-gradient(135deg,#07c160,#06ad56);
+    display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff;
+  }
+  h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.2px}
+  .sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .badge{
+    margin-left:auto;flex:none;font-size:11px;color:var(--brand);
+    background:#e8f8ee;border:1px solid #cfeedd;border-radius:20px;padding:3px 9px;
+  }
+  .status{
+    flex:none;font-size:11px;color:var(--muted);text-align:center;
+    padding:6px 10px;background:#eef7f1;border-bottom:1px solid var(--line);
+  }
+  .status.err{background:#fff1f0;color:#d93026;border-color:#f7d4d1}
+  main{flex:1;overflow-y:auto;padding:14px 12px 24px;-webkit-overflow-scrolling:touch}
+  .empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:13px}
+  .msg{display:flex;gap:9px;margin-bottom:16px;align-items:flex-start}
+  .avatar{
+    width:36px;height:36px;border-radius:8px;flex:none;background:#eef0f2;
+    display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .avatar img{width:100%;height:100%;object-fit:cover}
+  .body{min-width:0;max-width:calc(100% - 50px)}
+  .meta{font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;gap:8px;align-items:center}
+  .meta b{font-size:12px;color:#4b5563;font-weight:600}
+  .crown{color:#e9a100;font-size:11px}
+  .bubble{
+    background:var(--bubble);border:1px solid var(--line);border-radius:3px 10px 10px 10px;
+    padding:9px 12px;box-shadow:var(--shadow);display:inline-block;
+    max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap;word-break:break-word;
+  }
+  .bubble a{color:#1677d2;text-decoration:none}
+  .bubble img.media{max-width:min(260px,68vw);max-height:260px;border-radius:6px;display:block;cursor:zoom-in}
+  .file{
+    display:inline-flex;align-items:center;gap:7px;color:#1677d2;text-decoration:none;
+    background:#f2f7fc;border:1px solid #dce9f5;border-radius:7px;padding:7px 10px;max-width:100%;
+  }
+  .file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .recall{color:var(--muted);font-style:italic}
+  .loc{color:#333}
+  .loc .n{font-weight:600;display:block}
+  .loc .a{font-size:12px;color:var(--muted)}
+  .voice{color:#1677d2;cursor:pointer;user-select:none}
+  footer{
+    flex:none;text-align:center;color:#b0b4bb;font-size:11px;
+    padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);
+    background:var(--bg);
+  }
+  .lightbox{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9;
+    align-items:center;justify-content:center;padding:16px;
+  }
+  .lightbox.on{display:flex}
+  .lightbox img{max-width:100%;max-height:100%;object-fit:contain}
+  @media (min-width:720px){ main{max-width:760px;width:100%;margin:0 auto} header .hd-row,footer{max-width:760px;margin:0 auto} }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="ico">🚉</div>
-  <h1>公用中转站 · 隐藏入口</h1>
-  <p>正在前往正式站解锁…</p>
-</div>
+<header>
+  <div class="hd-row">
+    <div class="hd-icon">📢</div>
+    <div>
+      <h1>公用中转站</h1>
+      <div class="sub">仅 CMO 可发言 · 所有人可查看（无需注册登录）</div>
+    </div>
+    <span class="badge">只读</span>
+  </div>
+</header>
+<div class="status" id="status">正在连接…</div>
+<main id="list"><div class="empty">正在加载中转站消息…</div></main>
+<footer>靠北 Chat · 公用中转站 · 页面自动刷新</footer>
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('on')"><img id="lightboxImg" alt="预览"></div>
+
 <script>
-/* GitHub Pages 镜像是壳页：跳出 iframe，去正式站 /kkk/ 解锁「公用中转站」 */
-(function () {
-  var target = 'https://kaobei-chat.pages.dev/kkk/'
-  try { if (top.location !== location) { top.location.replace(target); return } } catch (e) {}
-  location.replace(target)
-})()
+(function(){
+  'use strict';
+  /* 所有部署入口（CF 双域名 / GitHub Pages）统一读主站公开接口，免登录、CORS 已放行 */
+  var API = 'https://kaobei-chat.pages.dev/api/relay/public';
+  var list = document.getElementById('list');
+  var statusEl = document.getElementById('status');
+  var lastSig = '';
+  var timer = null;
+  var busy = false;
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function safeUrl(u){
+    var s = String(u || '');
+    /* 只放行 http(s)、data:image、blob: 与站内相对路径，避免 javascript: 注入 */
+    return /^(https?:\/\/|data:image\/|blob:|\/)/i.test(s) ? s : '';
+  }
+  function linkify(t){
+    return esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  }
+  function fmtTime(iso){
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+  }
+  function avatarHtml(m){
+    var a = String(m.senderAvatar || '');
+    if (/^https?:\/\//i.test(a) || a.charAt(0) === '/') {
+      return '<img src="' + esc(safeUrl(a)) + '" alt="">';
+    }
+    return esc(a || '🙂');
+  }
+  function bubbleHtml(m){
+    var k = m.kind, c = m.content || '';
+    if (k === 'recalled') return '<div class="recall">撤回了一条消息</div>';
+    if (k === 'image') {
+      var u = safeUrl(c);
+      return u ? '<img class="media" src="' + esc(u) + '" alt="图片" loading="lazy" onclick="window.__kbZoom(this.src)">' : '[图片已失效]';
+    }
+    if (k === 'file') {
+      var fu = safeUrl(c), fn = m.fileName || '文件';
+      return fu ? '<a class="file" href="' + esc(fu) + '" target="_blank" rel="noopener" download="' + esc(fn) + '">📎 <span>' + esc(fn) + '</span></a>' : '[文件已失效]';
+    }
+    if (k === 'location') {
+      try {
+        var loc = JSON.parse(c);
+        return '<div class="loc"><span class="n">📍 ' + esc(loc.name || '位置') + '</span>' +
+          '<span class="a">' + esc(loc.addr || (loc.lat + ', ' + loc.lng)) + '</span></div>';
+      } catch(e){ return '[位置信息]'; }
+    }
+    if (k === 'voice') return '<span class="voice">▶ 语音 ' + (Number(m.dur)||1) + '″</span>';
+    return linkify(c);
+  }
+  window.__kbZoom = function(src){
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightbox').classList.add('on');
+  };
+
+  function render(msgs){
+    if (!msgs.length) { list.innerHTML = '<div class="empty">中转站还没有消息</div>'; return; }
+    var html = '';
+    for (var i=0;i<msgs.length;i++){
+      var m = msgs[i];
+      html += '<div class="msg">' +
+        '<div class="avatar">' + avatarHtml(m) + '</div>' +
+        '<div class="body">' +
+          '<div class="meta"><b>' + esc(m.senderName || '匿名') + '</b>' +
+            (m.senderName === 'CMO' || /CMO|靠北科技/.test(m.senderName||'') ? '<span class="crown">👑 CMO</span>' : '') +
+            '<span>' + esc(fmtTime(m.createdAt)) + '</span></div>' +
+          '<div class="bubble">' + bubbleHtml(m) + '</div>' +
+        '</div>' +
+      '</div>';
+    }
+    list.innerHTML = html;
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function load(){
+    if (busy) return;
+    busy = true;
+    var ac = new AbortController();
+    var to = setTimeout(function(){ ac.abort(); }, 12000);
+    fetch(API + '?_=' + Date.now(), {cache:'no-store', signal:ac.signal})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(j){
+        clearTimeout(to); busy = false;
+        var msgs = Array.isArray(j.messages) ? j.messages : [];
+        var sig = msgs.length + '|' + (msgs.length ? msgs[msgs.length-1].id : '') + '|' + (msgs.length ? msgs[msgs.length-1].kind : '');
+        if (sig !== lastSig) { lastSig = sig; render(msgs); }
+        statusEl.className = 'status';
+        statusEl.textContent = '已连接 · 共 ' + msgs.length + ' 条 · 每 5 秒自动刷新';
+      })
+      .catch(function(e){
+        clearTimeout(to); busy = false;
+        statusEl.className = 'status err';
+        statusEl.textContent = '连接失败（' + (e && e.message ? e.message : '网络错误') + '），5 秒后重试';
+      });
+  }
+
+  load();
+  timer = setInterval(load, 5000);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) load(); });
+})();
 </script>
 </body>
 </html>
