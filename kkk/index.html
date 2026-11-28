@@ -41,6 +41,7 @@
   .status.err{background:#fff1f0;color:#d93026;border-color:#f7d4d1}
   main{flex:1;overflow-y:auto;padding:14px 12px 24px;-webkit-overflow-scrolling:touch}
   .empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:13px}
+  .msg-sys{text-align:center;color:var(--muted);font-size:12px;margin:14px 0;padding:4px 10px}
   .msg{display:flex;gap:9px;margin-bottom:16px;align-items:flex-start}
   .avatar{
     width:36px;height:36px;border-radius:8px;flex:none;background:#eef0f2;
@@ -166,6 +167,11 @@
     var html = '';
     for (var i=0;i<msgs.length;i++){
       var m = msgs[i];
+      /* 撤回的消息：居中灰色系统提示，和主站一致 */
+      if (m.kind === 'recalled') {
+        html += '<div class="msg-sys">' + esc(m.senderName || '对方') + '撤回了一条消息</div>';
+        continue;
+      }
       html += '<div class="msg">' +
         '<div class="avatar">' + avatarHtml(m) + '</div>' +
         '<div class="body">' +
@@ -190,7 +196,10 @@
       .then(function(j){
         clearTimeout(to); busy = false;
         var msgs = Array.isArray(j.messages) ? j.messages : [];
-        var sig = msgs.length + '|' + (msgs.length ? msgs[msgs.length-1].id : '') + '|' + (msgs.length ? msgs[msgs.length-1].kind : '');
+        /* 签名必须覆盖每条消息的状态：撤回中间某条时最后一条不变，
+         * 只看最后一条会漏掉撤回事件（页面不刷新，看不到「撤回了一条消息」） */
+        var sig = '';
+        for (var i=0;i<msgs.length;i++) sig += msgs[i].id + ':' + msgs[i].kind + '|';
         if (sig !== lastSig) { lastSig = sig; render(msgs); }
         statusEl.className = 'status';
         statusEl.textContent = '已连接 · 共 ' + msgs.length + ' 条 · 每 5 秒自动刷新';
